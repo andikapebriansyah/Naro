@@ -1,5 +1,4 @@
-// src/app/riwayat/page.tsx - COMPLETE UPDATE
-
+// src/app/riwayat/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,9 +17,10 @@ import {
   calculateTaskProgress,
   formatDuration
 } from '@/lib/utils';
-import { Clock, CheckCircle, XCircle, Briefcase, UserCheck, Edit, Trash2, MessageCircle, Phone, AlertCircle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Briefcase, UserCheck, Edit, Trash2, MessageCircle, Phone, AlertCircle, Star, Calendar, MapPin } from 'lucide-react';
 import { CancelTaskModal } from '@/components/features/tasks/CancelTaskModal';
 import { ReportTaskModal } from '@/components/features/tasks/ReportTaskModal';
+import { ReviewModal } from '@/components/features/tasks/ReviewModal';
 import { toast } from 'sonner';
 
 type TabType = 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'reported';
@@ -41,6 +41,7 @@ interface TaskData {
   status: string;
   applicationStatus?: string;
   isAssignedWorker?: boolean;
+  completedAt?: string;
   poster?: {
     _id: string;
     name: string;
@@ -61,6 +62,12 @@ interface TaskData {
     resolvedAt?: string;
     action?: 'warning' | 'suspend_reported' | 'refund' | 'no_action';
   } | null;
+}
+
+interface ReviewData {
+  hasReviewed: boolean;
+  userReview: any;
+  reviews: any[];
 }
 
 const getProgressMessage = (progress: any) => {
@@ -98,6 +105,8 @@ export default function HistoryPage() {
   const [activeTab, setActiveTab] = useState<TabType>('in_progress');
   const [tasks, setTasks] = useState<TaskData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [reviewStatus, setReviewStatus] = useState<{ [taskId: string]: ReviewData }>({});
+  
   const [cancelModal, setCancelModal] = useState<{
     isOpen: boolean;
     taskId: string;
@@ -109,7 +118,6 @@ export default function HistoryPage() {
   });
   const [isCancelling, setIsCancelling] = useState(false);
 
-  // Report Modal State
   const [reportModal, setReportModal] = useState<{
     isOpen: boolean;
     taskId: string;
@@ -122,6 +130,23 @@ export default function HistoryPage() {
     userType: 'employer',
   });
   const [isReporting, setIsReporting] = useState(false);
+
+  const [reviewModal, setReviewModal] = useState<{
+    isOpen: boolean;
+    taskId: string;
+    taskTitle: string;
+    revieweeName: string;
+    userType: 'worker' | 'employer';
+  }>({
+    isOpen: false,
+    taskId: '',
+    taskTitle: '',
+    revieweeName: '',
+    userType: 'employer',
+  });
+  const [isReviewing, setIsReviewing] = useState(false);
+
+  const [isCompleting, setIsCompleting] = useState<string | null>(null);
 
   useEffect(() => {
     if (session) {
@@ -141,8 +166,6 @@ export default function HistoryPage() {
       const response = await fetch(endpoint);
       const data = await response.json();
 
-      console.log(`History API response (${mode} mode):`, data);
-
       if (data.success) {
         let filteredTasks = data.data;
 
@@ -150,7 +173,7 @@ export default function HistoryPage() {
           switch (activeTab) {
             case 'pending':
               filteredTasks = data.data.filter((task: any) =>
-                task.status === 'open' || task.status === 'pending' || (task.status === 'completed_worker' && task.assignedTo !== null)
+                task.status === 'open' || task.status === 'pending'
               );
               break;
             case 'in_progress':
@@ -178,8 +201,7 @@ export default function HistoryPage() {
           switch (activeTab) {
             case 'pending':
               filteredTasks = data.data.filter((task: any) =>
-                task.applicationStatus === 'pending' || 
-                (task.isAssignedWorker && task.status === 'completed_worker')
+                task.applicationStatus === 'pending'
               );
               break;
             case 'in_progress':
@@ -209,6 +231,11 @@ export default function HistoryPage() {
         }
 
         setTasks(filteredTasks);
+
+        // Fetch review status for completed tasks
+        if (activeTab === 'completed') {
+          fetchReviewStatuses(filteredTasks);
+        }
       } else {
         console.error(`Failed to fetch ${mode} tasks:`, data.error);
         setTasks([]);
@@ -219,6 +246,25 @@ export default function HistoryPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchReviewStatuses = async (completedTasks: TaskData[]) => {
+    const statuses: { [taskId: string]: ReviewData } = {};
+    
+    for (const task of completedTasks) {
+      try {
+        const response = await fetch(`/api/tasks/${task._id}/review`);
+        const data = await response.json();
+        
+        if (data.success) {
+          statuses[task._id] = data.data;
+        }
+      } catch (error) {
+        console.error(`Error fetching review status for task ${task._id}:`, error);
+      }
+    }
+    
+    setReviewStatus(statuses);
   };
 
   const tabs: { value: TabType; label: string; icon: any }[] = [
@@ -338,6 +384,81 @@ export default function HistoryPage() {
     }
   };
 
+  const handleCompleteTask = async (taskId: string, userType: 'worker' | 'employer') => {
+    setIsCompleting(taskId);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userType }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        fetchTasks();
+        toast.success(data.message);
+      } else {
+        toast.error(data.error || 'Gagal menyelesaikan tugas');
+      }
+    } catch (error) {
+      console.error('Error completing task:', error);
+      toast.error('Terjadi kesalahan saat menyelesaikan tugas');
+    } finally {
+      setIsCompleting(null);
+    }
+  };
+
+  const handleReviewTask = (task: TaskData) => {
+    const revieweeName = mode === 'employer' 
+      ? (task.assignedTo?.name || 'Pekerja')
+      : (task.poster?.name || 'Pemberi Kerja');
+
+    setReviewModal({
+      isOpen: true,
+      taskId: task._id,
+      taskTitle: task.title,
+      revieweeName,
+      userType: mode,
+    });
+  };
+
+  const confirmReview = async (rating: number, comment: string) => {
+    setIsReviewing(true);
+    try {
+      const response = await fetch(`/api/tasks/${reviewModal.taskId}/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ rating, comment }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Review berhasil dikirim');
+        fetchTasks(); // Refresh to update review status
+        setReviewModal({
+          isOpen: false,
+          taskId: '',
+          taskTitle: '',
+          revieweeName: '',
+          userType: 'employer',
+        });
+      } else {
+        toast.error(data.error || 'Gagal mengirim review');
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      toast.error('Terjadi kesalahan saat mengirim review');
+    } finally {
+      setIsReviewing(false);
+    }
+  };
+
   const handleChat = (phone?: string) => {
     if (!phone) {
       toast.error('Nomor WhatsApp tidak tersedia');
@@ -360,6 +481,182 @@ export default function HistoryPage() {
     }
 
     window.location.href = `tel:${phone}`;
+  };
+
+  const renderCompletedTaskCard = (task: TaskData) => {
+    const contactPerson = mode === 'employer' ? task.assignedTo : task.poster;
+    const reviewData = reviewStatus[task._id];
+    const hasReviewed = reviewData?.hasReviewed || false;
+    const otherUserReview = reviewData?.reviews?.find(
+      (r: any) => r.fromUserId._id.toString() !== session?.user?.id
+    );
+
+    return (
+      <Card className="hover:shadow-lg transition-shadow border-green-100">
+        <CardContent className="p-4">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg mb-1">{task.title}</h3>
+              <p className="text-sm text-gray-600">{task.category}</p>
+            </div>
+            <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-medium flex items-center gap-1">
+              <CheckCircle className="w-3 h-3" />
+              Selesai
+            </span>
+          </div>
+
+          {/* Location & Date Info */}
+          <div className="grid grid-cols-1 gap-2 text-sm text-gray-600 mb-4">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-gray-400" />
+              <span>{task.location}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-gray-400" />
+              <span>
+                {formatDate(task.startDate)} - {formatDate(task.endDate || task.startDate)}
+              </span>
+            </div>
+            {task.completedAt && (
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-green-600 font-medium">
+                  Diselesaikan: {formatDate(task.completedAt)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Contact Person Info */}
+          {contactPerson && (
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-14 h-14 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                  {contactPerson.name ? contactPerson.name.substring(0, 2).toUpperCase() : 'NA'}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 mb-1">
+                    {contactPerson.name || 'Tidak diketahui'}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {mode === 'employer' ? 'Pekerja' : 'Pemberi Kerja'}
+                  </div>
+                  <div className="flex items-center gap-1 mt-1">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <span className="text-sm font-medium text-gray-700">
+                      {contactPerson.rating?.toFixed(1) || '5.0'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Show other user's review if exists */}
+              {otherUserReview && (
+                <div className="bg-white rounded-lg p-3 mb-3 border border-gray-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 ${
+                            star <= otherUserReview.rating
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {new Date(otherUserReview.createdAt).toLocaleDateString('id-ID')}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 italic">
+                    "{otherUserReview.comment}"
+                  </p>
+                </div>
+              )}
+
+              {/* Contact buttons */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => handleChat(contactPerson.phone)}
+                >
+                  <MessageCircle className="w-3 h-3 mr-1" />
+                  Chat
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => handleCall(contactPerson.phone)}
+                >
+                  <Phone className="w-3 h-3 mr-1" />
+                  Telepon
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Budget */}
+          <div className="bg-blue-50 rounded-lg p-3 mb-4">
+            <div className="text-xs text-gray-600 mb-1">Total Pembayaran</div>
+            <div className="text-2xl font-bold text-primary-600">
+              {formatCurrency(task.budget)}
+            </div>
+          </div>
+
+          {/* Review Status / Button */}
+          {hasReviewed ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+              <div className="flex items-center gap-2 text-green-700 mb-2">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-semibold">Anda sudah memberikan ulasan</span>
+              </div>
+              {reviewData.userReview && (
+                <div>
+                  <div className="flex items-center gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`w-4 h-4 ${
+                          star <= reviewData.userReview.rating
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-sm text-gray-700">
+                    "{reviewData.userReview.comment}"
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Button
+              onClick={() => handleReviewTask(task)}
+              className="w-full mb-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+            >
+              <Star className="w-4 h-4 mr-2" />
+              Beri Ulasan & Rating
+            </Button>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Link href={`/tugas/${task._id}`} className="flex-1">
+              <Button variant="outline" size="sm" className="w-full">
+                Lihat Detail
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
@@ -452,7 +749,9 @@ export default function HistoryPage() {
 
                 return (
                   <div key={task._id}>
-                    {activeTab === 'reported' ? (
+                    {activeTab === 'completed' ? (
+                      renderCompletedTaskCard(task)
+                    ) : activeTab === 'reported' ? (
                       <Card className="hover:shadow-lg transition-shadow border-2 border-orange-200 bg-orange-50">
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between mb-3">
@@ -486,7 +785,6 @@ export default function HistoryPage() {
                             </div>
                           </div>
 
-                          {/* ✅ NEW: Display Report Status */}
                           {task.report ? (
                             <div className={`rounded-lg p-4 mb-4 border-l-4 ${task.report.status === 'resolved'
                                 ? 'bg-green-50 border-l-green-500'
@@ -520,9 +818,7 @@ export default function HistoryPage() {
                                 </p>
                               </div>
 
-                              {/* Resolution Details */}
                               <div className="space-y-3">
-                                {/* Who reported */}
                                 <div>
                                   <p className="text-xs font-medium text-gray-600 mb-1">
                                     Status Laporan:
@@ -537,7 +833,6 @@ export default function HistoryPage() {
                                   </p>
                                 </div>
 
-                                {/* Admin Resolution */}
                                 {task.report.status === 'resolved' && task.report.resolution && (
                                   <div>
                                     <p className="text-xs font-medium text-gray-600 mb-1">
@@ -549,7 +844,6 @@ export default function HistoryPage() {
                                   </div>
                                 )}
 
-                                {/* Admin Notes */}
                                 {task.report.adminNotes && (
                                   <div>
                                     <p className="text-xs font-medium text-gray-600 mb-1">
@@ -561,7 +855,6 @@ export default function HistoryPage() {
                                   </div>
                                 )}
 
-                                {/* Rejection reason */}
                                 {task.report.status === 'rejected' && task.report.adminNotes && (
                                   <div>
                                     <p className="text-xs font-medium text-red-600 mb-1">
@@ -742,12 +1035,49 @@ export default function HistoryPage() {
                               <Link href={`/tugas/${task._id}`}>
                                 <Button variant="outline" size="sm">Detail</Button>
                               </Link>
-                              <button
-                                onClick={() => handleReportTask(task._id, task.title, mode === 'employer' ? 'employer' : 'worker')}
-                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold"
-                              >
-                                Laporkan
-                              </button>
+                              {mode === 'employer' && (
+                                <>
+                                  {['accepted', 'active', 'proses'].includes(task.status) && task.assignedTo && (
+                                    <button
+                                      onClick={() => handleReportTask(task._id, task.title, 'employer')}
+                                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold"
+                                    >
+                                      Laporkan
+                                    </button>
+                                  )}
+                                  {['accepted', 'active', 'proses', 'completed_worker'].includes(task.status) && task.assignedTo && (
+                                    <button
+                                      onClick={() => handleCompleteTask(task._id, 'employer')}
+                                      disabled={isCompleting === task._id}
+                                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                    >
+                                      {isCompleting === task._id ? 'Proses...' :
+                                        task.status === 'completed_worker' ? 'Konfirmasi' : 'Selesai'}
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                              {mode === 'worker' && (
+                                <>
+                                  {['accepted', 'active', 'proses'].includes(task.status) && (
+                                    <button
+                                      onClick={() => handleReportTask(task._id, task.title, 'worker')}
+                                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold"
+                                    >
+                                      Laporkan
+                                    </button>
+                                  )}
+                                  {['accepted', 'active', 'proses'].includes(task.status) && (
+                                    <button
+                                      onClick={() => handleCompleteTask(task._id, 'worker')}
+                                      disabled={isCompleting === task._id}
+                                      className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                    >
+                                      {isCompleting === task._id ? 'Proses...' : 'Selesai'}
+                                    </button>
+                                  )}
+                                </>
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -793,19 +1123,6 @@ export default function HistoryPage() {
                               <span>{formatDate(task.startDate)}</span>
                             </div>
                           </div>
-
-                          {/* ✅ Special message for completed_worker status for worker */}
-                          {mode === 'worker' && task.status === 'completed_worker' && (
-                            <div className="bg-purple-50 rounded-lg p-3 mb-3 border-2 border-purple-200">
-                              <div className="flex items-center gap-2 mb-2">
-                                <AlertCircle className="w-5 h-5 text-purple-600" />
-                                <h4 className="font-semibold text-purple-900">Menunggu Konfirmasi Pemberi Kerja</h4>
-                              </div>
-                              <p className="text-sm text-purple-700">
-                                Anda telah menyelesaikan tugas ini. Menunggu pemberi kerja untuk mengonfirmasi penyelesaian dan melepaskan pembayaran.
-                              </p>
-                            </div>
-                          )}
 
                           <div className="flex items-center justify-between">
                             <span className="text-lg font-bold text-primary-600">
@@ -869,6 +1186,16 @@ export default function HistoryPage() {
         taskTitle={reportModal.taskTitle}
         isLoading={isReporting}
         userType={reportModal.userType}
+      />
+
+      <ReviewModal
+        isOpen={reviewModal.isOpen}
+        onClose={() => setReviewModal({ isOpen: false, taskId: '', taskTitle: '', revieweeName: '', userType: 'employer' })}
+        onConfirm={confirmReview}
+        taskTitle={reviewModal.taskTitle}
+        revieweeName={reviewModal.revieweeName}
+        isLoading={isReviewing}
+        userType={reviewModal.userType}
       />
     </>
   );

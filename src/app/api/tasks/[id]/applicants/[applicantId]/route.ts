@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import Task from '@/lib/models/Task';
+import mongoose from 'mongoose';
 
 export async function POST(
   request: NextRequest,
@@ -67,8 +68,8 @@ export async function POST(
     if (action === 'accept') {
       // Accept this applicant
       task.applicants[applicantIndex].status = 'accepted';
-      task.assignedTo = applicantId;
-      task.status = 'menunggu'; // Menunggu konfirmasi dari pekerja
+      task.assignedTo = new mongoose.Types.ObjectId(applicantId);
+      task.status = 'accepted'; // ✅ Langsung accepted karena pekerja sudah apply dan employer setuju
       
       // Reject all other applicants
       task.applicants.forEach((app: any, index: number) => {

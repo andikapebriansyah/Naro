@@ -173,7 +173,7 @@ export default function HistoryPage() {
           switch (activeTab) {
             case 'pending':
               filteredTasks = data.data.filter((task: any) =>
-                task.status === 'open' || task.status === 'pending'
+                task.status === 'open' || task.status === 'pending' || task.status === 'completed_worker'
               );
               break;
             case 'in_progress':
@@ -201,7 +201,8 @@ export default function HistoryPage() {
           switch (activeTab) {
             case 'pending':
               filteredTasks = data.data.filter((task: any) =>
-                task.applicationStatus === 'pending'
+                task.applicationStatus === 'pending' || 
+                (task.isAssignedWorker && task.status === 'completed_worker')
               );
               break;
             case 'in_progress':
@@ -1101,12 +1102,17 @@ export default function HistoryPage() {
                               )}
                             </div>
                             <span
-                              className={`text-xs px-2 py-1 rounded-full ${mode === 'worker' && task.applicationStatus
+                              className={`text-xs px-2 py-1 rounded-full ${
+                                task.status === 'completed_worker'
+                                  ? 'bg-purple-100 text-purple-700'
+                                  : mode === 'worker' && task.applicationStatus
                                   ? getApplicationStatusColor(task.applicationStatus)
                                   : getStatusColor(task.status)
                                 }`}
                             >
-                              {mode === 'worker' && task.applicationStatus
+                              {task.status === 'completed_worker'
+                                ? 'Menunggu Konfirmasi'
+                                : mode === 'worker' && task.applicationStatus
                                 ? getApplicationStatusLabel(task.applicationStatus)
                                 : getStatusLabel(task.status)
                               }
@@ -1123,6 +1129,23 @@ export default function HistoryPage() {
                               <span>{formatDate(task.startDate)}</span>
                             </div>
                           </div>
+
+                          {/* ✅ Show completion waiting message for completed_worker status */}
+                          {task.status === 'completed_worker' && (
+                            <div className="bg-purple-50 rounded-lg p-3 mb-3 border-2 border-purple-200">
+                              <div className="flex items-center gap-2 mb-1">
+                                <AlertCircle className="w-4 h-4 text-purple-600" />
+                                <h4 className="font-semibold text-purple-900 text-sm">
+                                  {mode === 'employer' ? 'Menunggu Konfirmasi Anda' : 'Menunggu Pekerjaan Dikonfirmasi'}
+                                </h4>
+                              </div>
+                              <p className="text-xs text-purple-700">
+                                {mode === 'employer' 
+                                  ? 'Pekerja telah menyelesaikan tugas. Silakan periksa hasil pekerjaan dan berikan konfirmasi.'
+                                  : 'Anda telah menyelesaikan pekerjaan. Menunggu pemberi kerja memberikan konfirmasi penyelesaian.'}
+                              </p>
+                            </div>
+                          )}
 
                           <div className="flex items-center justify-between">
                             <span className="text-lg font-bold text-primary-600">
@@ -1148,6 +1171,17 @@ export default function HistoryPage() {
                                     >
                                       <Trash2 className="h-3 w-3" />
                                       Batalkan
+                                    </Button>
+                                  )}
+                                  {/* ✅ Add Konfirmasi button for employer when status is completed_worker */}
+                                  {task.status === 'completed_worker' && task.assignedTo && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleCompleteTask(task._id, 'employer')}
+                                      disabled={isCompleting === task._id}
+                                      className="bg-green-600 hover:bg-green-700 text-white"
+                                    >
+                                      {isCompleting === task._id ? 'Proses...' : 'Konfirmasi'}
                                     </Button>
                                   )}
                                 </>

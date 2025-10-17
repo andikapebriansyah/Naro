@@ -51,7 +51,7 @@ export async function POST(
     
     // Assign the worker to the task
     task.assignedTo = applicantUserId;
-    task.status = 'pending'; // Set to pending, waiting for worker confirmation
+    task.status = 'accepted'; // ✅ Langsung accepted karena pekerja sudah apply dan employer setuju
 
     // Reject all other pending applicants
     task.applicants.forEach((app: any, index: number) => {

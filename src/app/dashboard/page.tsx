@@ -445,35 +445,8 @@ export default function DashboardPage() {
   };
 
   const handleAcceptOfferedJob = async (jobId: string) => {
-    try {
-      setProcessingJobId(jobId);
-
-      console.log('Accepting offered job:', jobId);
-
-      const response = await fetch(`/api/tasks/${jobId}/accept-offer`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        fetchOfferedJobs();
-        fetchActiveWorkerJobs();
-        fetchWorkerStats();
-        toast.success('Pekerjaan berhasil diterima! Cek di bagian pekerjaan aktif.');
-      } else {
-        console.error('Accept offer failed:', data.error);
-        toast.error(data.error || 'Gagal menerima pekerjaan');
-      }
-    } catch (error) {
-      console.error('Error accepting offered job:', error);
-      toast.error('Terjadi kesalahan saat menerima pekerjaan');
-    } finally {
-      setProcessingJobId(null);
-    }
+    // Redirect to agreement page instead of direct acceptance
+    router.push(`/pekerjaan/${jobId}/perjanjian?action=accept&from=dashboard`);
   };
 
   const handleRejectOfferedJob = async (jobId: string) => {
@@ -1327,10 +1300,9 @@ export default function DashboardPage() {
                               </button>
                               <button
                                 onClick={() => handleAcceptOfferedJob(job._id)}
-                                disabled={processingJobId === job._id}
-                                className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:shadow-lg transition-shadow"
                               >
-                                {processingJobId === job._id ? 'Menerima...' : 'Terima'}
+                                Terima
                               </button>
                             </div>
                           </div>

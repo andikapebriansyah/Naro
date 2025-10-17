@@ -15,7 +15,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { message } = await request.json();
+    const { message, agreedToTerms, agreedAt } = await request.json();
     const taskId = params.id;
 
     if (!message?.trim()) {
@@ -69,7 +69,9 @@ export async function POST(
       userId: session.user.id,
       appliedAt: new Date(),
       status: 'pending',
-      message: message.trim()
+      message: message?.trim() || 'Saya tertarik dengan pekerjaan ini',
+      agreedToTerms: agreedToTerms || false,
+      agreedAt: agreedAt ? new Date(agreedAt) : null
     });
 
     // PERBAIKAN: Task TETAP 'open' meskipun ada yang apply

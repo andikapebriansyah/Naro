@@ -21,13 +21,17 @@ export async function GET(request: NextRequest) {
 
     await dbConnect();
 
-    // Find tasks where user is assigned worker OR has applied (for publication)
+    // Find tasks where user is involved:
+    // 1. For 'find_worker': ONLY if user is the assigned worker (targeted assignment)
+    // 2. For 'publication': if user is assigned OR has applied (open application)
     let query: any = {
       $or: [
+        // ✅ FIXED: find_worker method - HANYA untuk pekerja yang dituju
         {
           assignedTo: session.user.id,
           searchMethod: 'find_worker'
         },
+        // ✅ publication method - untuk pekerja yang di-assign ATAU sudah apply
         {
           assignedTo: session.user.id,
           searchMethod: 'publication'
@@ -42,7 +46,8 @@ export async function GET(request: NextRequest) {
     console.log('Worker jobs query:', {
       userId: session.user.id,
       filter: 'assigned or applicant',
-      statusParam
+      statusParam,
+      queryDetails: JSON.stringify(query, null, 2)
     });
 
     const tasks = await Task.find(query)
@@ -54,7 +59,18 @@ export async function GET(request: NextRequest) {
 
     console.log('Found worker jobs:', {
       total: tasks.length,
-      userId: session.user.id
+      userId: session.user.id,
+      taskDetails: tasks.map(t => ({
+        id: t._id.toString(),
+        title: t.title,
+        searchMethod: t.searchMethod,
+        assignedTo: t.assignedTo?._id?.toString(),
+        isAssignedToCurrentUser: t.assignedTo?._id?.toString() === session.user.id,
+        applicants: t.applicants?.map((a: any) => ({
+          userId: a.userId.toString(),
+          isCurrentUser: a.userId.toString() === session.user.id
+        }))
+      }))
     });
 
     // Fetch reports untuk tasks yang disputed
@@ -71,8 +87,38 @@ export async function GET(request: NextRequest) {
       reportMap.set(report.taskId.toString(), report);
     });
 
+    // ✅ ADDITIONAL SAFETY CHECK: Filter out find_worker tasks that are not assigned to current user
+    const validTasks = tasks.filter((task) => {
+      const isAssignedWorker = task.assignedTo?._id?.toString() === session.user.id;
+      const hasApplication = task.applicants?.some(
+        (app: any) => app.userId.toString() === session.user.id
+      );
+
+      // For find_worker method: MUST be assigned to current user
+      if (task.searchMethod === 'find_worker') {
+        if (!isAssignedWorker) {
+          console.log(`🚫 FILTERED OUT find_worker task ${task._id} - not assigned to current user`, {
+            taskId: task._id.toString(),
+            assignedTo: task.assignedTo?._id?.toString(),
+            currentUser: session.user.id
+          });
+          return false; // Filter out this task
+        }
+      }
+
+      // For publication method: user must be assigned OR have application
+      if (task.searchMethod === 'publication') {
+        if (!isAssignedWorker && !hasApplication) {
+          console.log(`🚫 FILTERED OUT publication task ${task._id} - no relationship to current user`);
+          return false; // Filter out this task
+        }
+      }
+
+      return true; // Include this task
+    });
+
     // Format response dengan logic yang jelas
-    const formattedTasks = tasks.map((task) => {
+    const formattedTasks = validTasks.map((task) => {
       // ✅ FIX: assignedTo adalah object (hasil populate), gunakan _id
       const isAssignedWorker = task.assignedTo?._id?.toString() === session.user.id;
       const userApplication = task.applicants?.find(

@@ -27,48 +27,36 @@ export default function WorkerDetailPage() {
   const fetchWorkerDetail = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users/${workerId}`);
-      const data = await response.json();
+      // Fetch worker profile
+      const workerResponse = await fetch(`/api/users/${workerId}`);
+      const workerData = await workerResponse.json();
 
-      if (data.success) {
-        setWorker(data.data);
-        // TODO: Fetch work history and reviews
-        // For now using mock data
-        setWorkHistory([
-          {
-            id: 1,
-            date: '2 hari yang lalu',
-            title: 'Bongkar Muat Material',
-            employer: 'Toko Bangunan Jaya',
-            description: 'Membantu bongkar muat semen dan bata dari truk ke gudang. Bekerja 6 jam.',
-            payment: 180000,
-          },
-          {
-            id: 2,
-            date: '1 minggu yang lalu',
-            title: 'Angkut Material ke Lantai 2',
-            employer: 'Pak Ahmad - Renovasi Rumah',
-            description: 'Mengangkut pasir, semen, dan batu bata ke lantai 2 untuk proyek renovasi.',
-            payment: 250000,
-          },
-        ]);
+      if (workerData.success) {
+        setWorker(workerData.data);
 
-        setReviews([
-          {
-            id: 1,
-            reviewer: 'Budi Tanjung',
-            date: '3 hari yang lalu',
-            rating: 5,
-            comment: 'Pekerja sangat baik! Bantu angkat barang berat ke lantai 2 dengan cepat dan hati-hati. Orangnya rajin dan tidak banyak istirahat. Recommended!',
-          },
-          {
-            id: 2,
-            reviewer: 'Siti Rahmah',
-            date: '1 minggu yang lalu',
-            rating: 5,
-            comment: 'Tepat waktu dan kerja cepat. Bantu bongkar material bangunan dengan efisien. Pasti pakai lagi kalau ada proyek selanjutnya.',
-          },
-        ]);
+        // Fetch work history
+        try {
+          const historyResponse = await fetch(`/api/users/${workerId}/work-history`);
+          const historyData = await historyResponse.json();
+          if (historyData.success) {
+            setWorkHistory(historyData.data);
+          }
+        } catch (error) {
+          console.error('Error fetching work history:', error);
+          setWorkHistory([]); // Set empty array if fetch fails
+        }
+
+        // Fetch reviews
+        try {
+          const reviewsResponse = await fetch(`/api/users/${workerId}/reviews`);
+          const reviewsData = await reviewsResponse.json();
+          if (reviewsData.success) {
+            setReviews(reviewsData.data);
+          }
+        } catch (error) {
+          console.error('Error fetching reviews:', error);
+          setReviews([]); // Set empty array if fetch fails
+        }
       }
     } catch (error) {
       console.error('Error fetching worker detail:', error);
@@ -91,9 +79,6 @@ export default function WorkerDetailPage() {
       </>
     );
   }
-
-  const availability = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-  const availableDays = [true, true, false, true, true, true, false];
 
   return (
     <>
@@ -131,7 +116,21 @@ export default function WorkerDetailPage() {
                     )}
                   </div>
                   <p className="text-gray-600 mb-3">
-                    {worker.category || 'Pekerja Umum'}
+                    {worker.workCategories && worker.workCategories.length > 0 
+                      ? worker.workCategories.map((cat: string) => {
+                          const categoryMap: { [key: string]: string } = {
+                            kebersihan: 'Kebersihan',
+                            teknisi: 'Teknisi',
+                            renovasi: 'Renovasi',
+                            tukang: 'Tukang',
+                            angkut: 'Angkut Barang',
+                            taman: 'Taman & Kebun',
+                            lainnya: 'Lainnya'
+                          };
+                          return categoryMap[cat] || cat;
+                        }).join(', ')
+                      : 'Pekerja Umum'
+                    }
                   </p>
                 </div>
               </div>
@@ -149,7 +148,7 @@ export default function WorkerDetailPage() {
                   <div className="text-sm text-gray-600">Tugas Selesai</div>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold">{worker.reviewCount || 0}</div>
+                  <div className="text-2xl font-bold">{reviews.length || 0}</div>
                   <div className="text-sm text-gray-600">Ulasan</div>
                 </div>
               </div>
@@ -164,7 +163,7 @@ export default function WorkerDetailPage() {
                 <span>Tentang</span>
               </h2>
               <p className="text-gray-700 leading-relaxed">
-                {worker.bio || 
+                {worker.about || 
                   'Berpengalaman sebagai pekerja lebih dari 5 tahun. Terbiasa mengerjakan berbagai pekerjaan. Pekerja keras, dapat diandalkan, dan selalu menyelesaikan tugas dengan baik.'}
               </p>
             </CardContent>
@@ -199,37 +198,6 @@ export default function WorkerDetailPage() {
                     </div>
                   ))
                 )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Availability */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-                <span>📅</span>
-                <span>Ketersediaan</span>
-              </h2>
-
-              <div className="mb-3">
-                <h3 className="font-medium mb-3">Jadwal Minggu Ini</h3>
-                <div className="grid grid-cols-7 gap-2">
-                  {availability.map((day, index) => (
-                    <div
-                      key={day}
-                      className={`text-center p-3 rounded-lg ${
-                        availableDays[index]
-                          ? 'bg-green-50 border border-green-200'
-                          : 'bg-gray-50 border border-gray-200'
-                      }`}
-                    >
-                      <div className="text-xs text-gray-600 mb-1">{day}</div>
-                      <div className={`text-lg ${availableDays[index] ? 'text-green-600' : 'text-gray-400'}`}>
-                        {availableDays[index] ? '✓' : '—'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </CardContent>
           </Card>

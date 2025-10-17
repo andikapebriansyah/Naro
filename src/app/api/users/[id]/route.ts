@@ -24,7 +24,7 @@ export async function GET(
 
     // Find user
     const user = await User.findById(userId).select(
-      'name email phone role category location isVerified isAvailable rating reviewCount completedTasks'
+      'name email phone role workCategories location isVerified isAvailable rating completedTasks about balance'
     );
 
     if (!user) {

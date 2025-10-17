@@ -63,7 +63,7 @@ export function CancelTaskModal({
               </Button>
               <Button
                 type="submit"
-                variant="destructive"
+                variant="danger"
                 disabled={isLoading}
                 className="flex-1"
               >

@@ -54,7 +54,22 @@ export async function POST(
     user.ktpVerification.verifiedAt = new Date();
     user.isVerified = true;
 
+    // Update user name with KTP extracted name if available
+    const oldName = user.name;
+    let nameUpdated = false;
+    
+    if (user.ktpVerification.extractedData?.nama) {
+      const ktpName = user.ktpVerification.extractedData.nama.trim();
+      if (ktpName && ktpName.length > 0 && ktpName !== user.name) {
+        console.log(`Updating user name from "${user.name}" to "${ktpName}"`);
+        user.name = ktpName;
+        nameUpdated = true;
+      }
+    }
+
     await user.save();
+
+    console.log(`Verification approved for user ${user._id}. Name updated: ${nameUpdated}`);
 
     return NextResponse.json({
       success: true,
@@ -62,6 +77,8 @@ export async function POST(
       data: {
         userId: user._id,
         name: user.name,
+        oldName,
+        nameUpdated,
         email: user.email,
         verifiedAt: user.ktpVerification.verifiedAt,
       },

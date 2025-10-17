@@ -349,19 +349,19 @@ export default function AvailableJobsPage() {
                         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                           <div className="flex items-center space-x-2">
                             <div className="h-8 w-8 bg-primary-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                              {getInitials(job.poster?.name || 'Pengguna')}
+                              {getInitials(job.postedBy?.name || job.poster?.name || 'Pengguna')}
                             </div>
                             <div>
                               <div className="flex items-center space-x-1">
-                                <span className="text-sm font-medium">{job.poster?.name}</span>
-                                {job.poster?.isVerified && (
+                                <span className="text-sm font-medium">{job.postedBy?.name || job.poster?.name}</span>
+                                {(job.postedBy?.isVerified || job.poster?.isVerified) && (
                                   <span className="text-blue-500 text-sm">✓</span>
                                 )}
                               </div>
-                              {job.poster?.rating && (
+                              {(job.postedBy?.rating || job.poster?.rating) && (
                                 <div className="flex items-center space-x-1">
                                   <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                                  <span className="text-xs text-gray-600">{job.poster.rating}</span>
+                                  <span className="text-xs text-gray-600">{job.postedBy?.rating || job.poster?.rating}</span>
                                 </div>
                               )}
                             </div>

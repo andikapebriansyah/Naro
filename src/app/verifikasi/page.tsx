@@ -19,16 +19,24 @@ export default function VerificationPage() {
   const [selfiePreview, setSelfiePreview] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [extractedData, setExtractedData] = useState<any>(null);
+  
+  // File validation states
+  const [ktpFileError, setKtpFileError] = useState<string>('');
+  const [selfieFileError, setSelfieFileError] = useState<string>('');
 
   const handleKtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file size
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Ukuran file maksimal 5MB');
+      // Validate file size - maksimal 1MB
+      if (file.size > 1 * 1024 * 1024) {
+        setKtpFileError('Ukuran file maksimal 1MB');
+        setKtpImage(null);
+        setKtpPreview('');
         return;
       }
 
+      // Clear error if file size is valid
+      setKtpFileError('');
       setKtpImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -41,12 +49,16 @@ export default function VerificationPage() {
   const handleSelfieChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file size
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Ukuran file maksimal 5MB');
+      // Validate file size - maksimal 1MB
+      if (file.size > 1 * 1024 * 1024) {
+        setSelfieFileError('Ukuran file maksimal 1MB');
+        setSelfieImage(null);
+        setSelfiePreview('');
         return;
       }
 
+      // Clear error if file size is valid
+      setSelfieFileError('');
       setSelfieImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -61,6 +73,12 @@ export default function VerificationPage() {
 
     if (!ktpImage || !selfieImage) {
       toast.error('Mohon upload kedua foto');
+      return;
+    }
+
+    // Check for file size errors
+    if (ktpFileError || selfieFileError) {
+      toast.error('Terdapat file yang melebihi batas ukuran');
       return;
     }
 
@@ -259,13 +277,22 @@ export default function VerificationPage() {
                           <Upload className="h-12 w-12 mx-auto mb-2 text-gray-400" />
                           <p className="font-medium">Ambil atau pilih foto KTP</p>
                           <p className="text-sm text-gray-500 mt-1">
-                            Format: JPG, PNG (Max 5MB)
+                            Format: JPG, PNG (Max 1MB)
                           </p>
                         </>
                       )}
                     </label>
                   </div>
-                  {ktpImage && (
+                  {/* File status messages */}
+                  {ktpFileError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
+                      <p className="text-sm text-red-600 flex items-center gap-1">
+                        <XCircle className="h-4 w-4" />
+                        {ktpFileError}
+                      </p>
+                    </div>
+                  )}
+                  {ktpImage && !ktpFileError && (
                     <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
                       <CheckCircle className="h-4 w-4" />
                       Foto KTP siap: {ktpImage.name}
@@ -299,13 +326,22 @@ export default function VerificationPage() {
                           <Upload className="h-12 w-12 mx-auto mb-2 text-gray-400" />
                           <p className="font-medium">Ambil atau pilih foto selfie</p>
                           <p className="text-sm text-gray-500 mt-1">
-                            Pastikan wajah dan KTP terlihat jelas
+                            Pastikan wajah dan KTP terlihat jelas (Max 1MB)
                           </p>
                         </>
                       )}
                     </label>
                   </div>
-                  {selfieImage && (
+                  {/* File status messages */}
+                  {selfieFileError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
+                      <p className="text-sm text-red-600 flex items-center gap-1">
+                        <XCircle className="h-4 w-4" />
+                        {selfieFileError}
+                      </p>
+                    </div>
+                  )}
+                  {selfieImage && !selfieFileError && (
                     <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
                       <CheckCircle className="h-4 w-4" />
                       Foto Selfie siap: {selfieImage.name}
@@ -344,17 +380,36 @@ export default function VerificationPage() {
                   type="submit"
                   className="w-full"
                   size="lg"
-                  disabled={!ktpImage || !selfieImage || isSubmitting}
+                  disabled={!ktpImage || !selfieImage || isSubmitting || ktpFileError || selfieFileError}
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Memproses & Membaca KTP...
                     </>
+                  ) : (ktpFileError || selfieFileError) ? (
+                    'Perbaiki Ukuran File'
                   ) : (
                     'Kirim Verifikasi'
                   )}
                 </Button>
+
+                {/* Error summary for file size */}
+                {(ktpFileError || selfieFileError) && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-3">
+                    <div className="flex items-start space-x-2">
+                      <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-800">
+                          Tidak dapat mengirim verifikasi
+                        </p>
+                        <p className="text-sm text-red-700 mt-1">
+                          Terdapat file yang melebihi batas ukuran maksimal 1MB. Silakan pilih file dengan ukuran yang lebih kecil.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </form>
 
               {/* Status Info */}

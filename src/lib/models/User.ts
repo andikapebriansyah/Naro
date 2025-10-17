@@ -112,6 +112,10 @@ const userSchema = new Schema(
       type: String,
       enum: ['kebersihan', 'teknisi', 'renovasi', 'tukang', 'angkut', 'taman', 'lainnya']
     }],
+    isAvailable: {
+      type: Boolean,
+      default: true,
+    },
     // AI Embedding vector for smart recommendation (stored as JSON string)
     profileVector: {
       type: String,  // Change to String to store JSON

@@ -317,6 +317,45 @@ export default function AdminDashboardPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Users Management */}
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Users className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle>Kelola Pengguna</CardTitle>
+                    <CardDescription>
+                      Lihat dan kelola data semua pengguna
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Total pengguna:</span>
+                    <span className="font-semibold text-blue-600">
+                      {stats.totalUsers} pengguna
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Terverifikasi:</span>
+                    <span className="font-semibold text-green-600">
+                      {stats.verifiedUsers} pengguna
+                    </span>
+                  </div>
+                  <Link href="/admin/users">
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                      Kelola Pengguna
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Info Box */}

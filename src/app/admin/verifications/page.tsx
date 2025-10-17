@@ -46,9 +46,50 @@ interface KTPVerification {
     submittedAt: string;
     verifiedAt?: string;
     rejectionReason?: string;
+    ocrConfidence?: number;
+    extractedData?: {
+      nik?: string;
+      nama?: string;
+      tempatTglLahir?: string;
+      jenisKelamin?: string;
+      alamat?: string;
+      rtRw?: string;
+      rawText?: string;
+    };
   };
   createdAt: string;
 }
+
+// Validation functions
+const validateKTPData = (extractedData: any) => {
+  const errors: string[] = [];
+  
+  // Validate NIK - must be exactly 16 digits, numbers only
+  if (extractedData?.nik) {
+    const nikPattern = /^\d{16}$/;
+    if (!nikPattern.test(extractedData.nik)) {
+      if (extractedData.nik.length !== 16) {
+        errors.push('NIK harus terdiri dari 16 digit angka');
+      } else if (!/^\d+$/.test(extractedData.nik)) {
+        errors.push('NIK hanya boleh berisi angka, tidak boleh ada huruf');
+      }
+    }
+  }
+  
+  // Normalize tempat/tanggal lahir - handle variations like "tgi" or "tgl"
+  if (extractedData?.tempatTglLahir) {
+    // Replace common OCR errors: tgi -> tgl, Tgi -> Tgl, TGI -> TGL
+    extractedData.tempatTglLahir = extractedData.tempatTglLahir
+      .replace(/\btgi\b/gi, 'Tgl')
+      .replace(/\bTGI\b/g, 'TGL')
+      .replace(/\btgl\b/g, 'Tgl');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
 
 export default function AdminVerificationsPage() {
   const { data: session, status } = useSession();
@@ -305,24 +346,107 @@ export default function AdminVerificationsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* OCR Confidence Score */}
+                  {ktp.ocrConfidence !== undefined && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                      <Label className="text-blue-800 font-semibold">Confidence Score OCR</Label>
+                      <p className="text-sm text-blue-700">
+                        {(ktp.ocrConfidence * 100).toFixed(1)}% - {ktp.ocrConfidence >= 0.8 ? 'Tinggi' : ktp.ocrConfidence >= 0.5 ? 'Sedang' : 'Rendah'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Data Validation Warning */}
+                  {(() => {
+                    const validation = validateKTPData(ktp.extractedData);
+                    if (!validation.isValid) {
+                      return (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                          <div className="flex items-start space-x-2">
+                            <div className="text-red-500">⚠️</div>
+                            <div>
+                              <Label className="text-red-800 font-semibold">Data Tidak Valid - Verifikasi Harus Ditolak</Label>
+                              <ul className="mt-2 text-sm text-red-700 list-disc list-inside">
+                                {validation.errors.map((error, index) => (
+                                  <li key={index}>{error}</li>
+                                ))}
+                              </ul>
+                              <p className="mt-2 text-sm text-red-600 font-medium">
+                                ⚠️ Admin harus menolak verifikasi ini karena data KTP tidak valid
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  
+                  {/* Display extracted data if available, fallback to manual data */}
                   <div>
-                    <Label className="text-gray-600">Nomor KTP</Label>
-                    <p className="text-lg font-mono font-medium">{ktp.ktpNumber}</p>
+                    <Label className="text-gray-600">NIK</Label>
+                    {(() => {
+                      const nik = ktp.extractedData?.nik || ktp.ktpNumber || 'Tidak terdeteksi';
+                      const isValidNik = /^\d{16}$/.test(nik);
+                      
+                      return (
+                        <div>
+                          <p className={`text-lg font-mono font-medium ${!isValidNik && nik !== 'Tidak terdeteksi' ? 'text-red-600' : ''}`}>
+                            {nik}
+                          </p>
+                          {!isValidNik && nik !== 'Tidak terdeteksi' && (
+                            <p className="text-xs text-red-500 mt-1">
+                              ⚠️ NIK tidak valid (harus 16 digit angka)
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div>
-                    <Label className="text-gray-600">Nama Lengkap (KTP)</Label>
-                    <p className="font-medium">{ktp.fullName}</p>
+                    <Label className="text-gray-600">Nama</Label>
+                    <p className="font-medium">
+                      {ktp.extractedData?.nama || ktp.fullName || 'Tidak terdeteksi'}
+                    </p>
                   </div>
+                  
                   <div>
-                    <Label className="text-gray-600">Tanggal Lahir</Label>
-                    <p className="text-sm">{ktp.dateOfBirth}</p>
+                    <Label className="text-gray-600">Tempat/Tanggal Lahir</Label>
+                    <p className="text-sm">
+                      {(() => {
+                        if (!ktp.extractedData?.tempatTglLahir) return 'Tidak terdeteksi';
+                        
+                        // Apply normalization for display
+                        return ktp.extractedData.tempatTglLahir
+                          .replace(/\btgi\b/gi, 'Tgl')
+                          .replace(/\bTGI\b/g, 'TGL')
+                          .replace(/\btgl\b/g, 'Tgl');
+                      })()}
+                    </p>
                   </div>
+                  
+                  <div>
+                    <Label className="text-gray-600">Jenis Kelamin</Label>
+                    <p className="text-sm">
+                      {ktp.extractedData?.jenisKelamin || 'Tidak terdeteksi'}
+                    </p>
+                  </div>
+                  
                   <div>
                     <Label className="text-gray-600 flex items-center">
                       <MapPin className="w-4 h-4 mr-1" />
                       Alamat
                     </Label>
-                    <p className="text-sm">{ktp.address}</p>
+                    <p className="text-sm">
+                      {ktp.extractedData?.alamat || ktp.address || 'Tidak terdeteksi'}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-gray-600">RT/RW</Label>
+                    <p className="text-sm">
+                      {ktp.extractedData?.rtRw || 'Tidak terdeteksi'}
+                    </p>
                   </div>
                   {ktp.status === 'rejected' && ktp.rejectionReason && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -408,21 +532,55 @@ export default function AdminVerificationsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Data validation warning for actions */}
+                  {(() => {
+                    const validation = validateKTPData(ktp.extractedData);
+                    if (!validation.isValid) {
+                      return (
+                        <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-4">
+                          <div className="flex items-start space-x-2">
+                            <div className="text-red-500 text-lg">🚫</div>
+                            <div className="flex-1">
+                              <h4 className="text-red-800 font-bold text-lg">PERINGATAN: Data KTP Tidak Valid!</h4>
+                              <p className="text-red-700 font-medium mt-1">
+                                Verifikasi ini HARUS DITOLAK karena ada kesalahan dalam data KTP:
+                              </p>
+                              <ul className="mt-2 text-sm text-red-700 list-disc list-inside space-y-1">
+                                {validation.errors.map((error, index) => (
+                                  <li key={index} className="font-medium">• {error}</li>
+                                ))}
+                              </ul>
+                              <div className="mt-3 p-2 bg-red-100 border border-red-300 rounded text-sm text-red-800 font-medium">
+                                ⚠️ <strong>INSTRUKSI:</strong> Klik "Tolak Verifikasi" dan jelaskan kepada pengguna bahwa data KTP tidak valid dan mereka perlu mengupload ulang dengan foto yang lebih jelas.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                   {!showRejectForm ? (
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <Button
-                        onClick={() => handleApprove(verification._id)}
-                        disabled={isProcessing}
-                        className="flex-1"
-                        size="lg"
-                      >
-                        {isProcessing ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-5 h-5 mr-2" />
-                        )}
-                        Setujui Verifikasi
-                      </Button>
+                      {(() => {
+                        const validation = validateKTPData(ktp.extractedData);
+                        return (
+                          <Button
+                            onClick={() => handleApprove(verification._id)}
+                            disabled={isProcessing || !validation.isValid}
+                            className={`flex-1 ${!validation.isValid ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            size="lg"
+                            title={!validation.isValid ? 'Tidak dapat menyetujui karena data KTP tidak valid' : ''}
+                          >
+                            {isProcessing ? (
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-5 h-5 mr-2" />
+                            )}
+                            {!validation.isValid ? 'Setujui Verifikasi (Dinonaktifkan)' : 'Setujui Verifikasi'}
+                          </Button>
+                        );
+                      })()}
                       <Button
                         onClick={() => setShowRejectForm(true)}
                         disabled={isProcessing}

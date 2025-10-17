@@ -81,6 +81,22 @@ const userSchema = new Schema(
     rating: {
       type: Number,
       default: 0,
+      min: 0,
+      max: 5,
+    },
+    totalReviews: {
+      type: Number,
+      default: 0,
+    },
+    reviewStats: {
+      averageRating: { type: Number, default: 0 },
+      totalReviews: { type: Number, default: 0 },
+      aspects: {
+        communication: { type: Number, default: 0 },
+        professionalism: { type: Number, default: 0 },
+        quality: { type: Number, default: 0 },
+        punctuality: { type: Number, default: 0 },
+      },
     },
     completedTasks: {
       type: Number,
@@ -96,6 +112,10 @@ const userSchema = new Schema(
       type: String,
       enum: ['kebersihan', 'teknisi', 'renovasi', 'tukang', 'angkut', 'taman', 'lainnya']
     }],
+    isAvailable: {
+      type: Boolean,
+      default: true,
+    },
     // AI Embedding vector for smart recommendation (stored as JSON string)
     profileVector: {
       type: String,  // Change to String to store JSON

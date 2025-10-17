@@ -25,13 +25,23 @@ export async function GET(request: NextRequest) {
       posterId: { $ne: session.user.id }, // Exclude user's own tasks
     };
 
+    console.log('Jobs API - Initial request params:', {
+      userId: session.user.id,
+      category,
+      search,
+      location,
+      searchMethod,
+      limit
+    });
+
     // Status filter based on searchMethod
     if (searchMethod === 'publication') {
       // Publikasi jobs: status harus 'open'
       query.status = 'open';
     } else if (searchMethod === 'find_worker') {
-      // Permintaan jobs: status bisa 'open', 'buka', atau 'draft' (show all find_worker requests)
-      query.status = { $in: ['open', 'buka', 'draft'] };
+      // Permintaan jobs: hanya yang di-assign ke user ini
+      query.assignedTo = session.user.id;
+      query.status = { $in: ['open', 'buka', 'draft', 'pending'] };
     } else {
       // Default: hanya yang open
       query.status = 'open';
@@ -57,12 +67,30 @@ export async function GET(request: NextRequest) {
       query.location = { $regex: location, $options: 'i' };
     }
 
+    console.log('Jobs API - Final query:', {
+      searchMethod,
+      queryDetails: JSON.stringify(query, null, 2)
+    });
+
     // Find tasks with poster information
     const tasks = await Task.find(query)
       .populate('posterId', 'name image isVerified rating')
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
+
+    console.log('Jobs API - Found tasks:', {
+      total: tasks.length,
+      searchMethod,
+      taskDetails: tasks.map(task => ({
+        taskId: task._id.toString(),
+        title: task.title,
+        searchMethod: task.searchMethod,
+        assignedTo: task.assignedTo?.toString(),
+        posterId: task.posterId._id?.toString() || task.posterId.toString(),
+        status: task.status
+      }))
+    });
 
     // Format the response
     const formattedTasks = tasks.map((task) => ({

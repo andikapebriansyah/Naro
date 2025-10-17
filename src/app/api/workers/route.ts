@@ -24,12 +24,18 @@ export async function GET(request: NextRequest) {
     }
 
     const workers = await User.find(query)
-      .select('name email image rating completedTasks location isVerified workCategories phone about')
+      .select('name email image rating completedTasks location isVerified workCategories phone about isAvailable')
       .limit(50)
       .sort({ rating: -1, completedTasks: -1 });
 
+    // Add isAvailable field and format the response
+    const formattedWorkers = workers.map(worker => ({
+      ...worker.toObject(),
+      isAvailable: worker.isAvailable !== undefined ? worker.isAvailable : true
+    }));
+
     // If no workers found in database, return mock data for testing
-    if (workers.length === 0) {
+    if (formattedWorkers.length === 0) {
       const mockWorkers = [
         {
           _id: 'mock1',
@@ -155,7 +161,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: workers,
+      data: formattedWorkers,
     });
   } catch (error) {
     console.error('Get workers error:', error);

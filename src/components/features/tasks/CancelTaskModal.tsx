@@ -61,14 +61,14 @@ export function CancelTaskModal({
               >
                 Batal
               </Button>
-              <Button
+                <Button
                 type="submit"
                 variant="danger"
                 disabled={isLoading}
                 className="flex-1"
-              >
+                >
                 {isLoading ? 'Membatalkan...' : 'Ya, Batalkan'}
-              </Button>
+                </Button>
             </div>
           </form>
         </CardContent>

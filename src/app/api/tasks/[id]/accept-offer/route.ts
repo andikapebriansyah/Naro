@@ -15,6 +15,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { agreedToTerms, agreedAt } = await request.json();
     const taskId = params.id;
 
     await dbConnect();
@@ -86,6 +87,13 @@ export async function POST(
 
     // Accept the offer - worker confirms acceptance
     task.updatedAt = new Date();
+    
+    // Store agreement details
+    if (!task.workerAgreement) {
+      task.workerAgreement = {};
+    }
+    task.workerAgreement.agreedToTerms = agreedToTerms || false;
+    task.workerAgreement.agreedAt = agreedAt ? new Date(agreedAt) : new Date();
 
     await task.save();
 

@@ -12,21 +12,43 @@ export async function GET(
     await dbConnect();
 
     const userId = params.id;
+    console.log('Fetching work history for user:', userId);
+
+    // Debug: Check all tasks for this user (both as poster and assigned worker)
+    const allUserTasks = await Task.find({
+      $or: [
+        { posterId: userId },
+        { assignedTo: userId }
+      ]
+    }).select('title status assignedTo posterId completedAt searchMethod').lean();
+
+    console.log('All tasks related to user:', JSON.stringify(allUserTasks, null, 2));
 
     // Get completed tasks where the user was the assigned worker
+    // Include all completion statuses: completed, completed_worker, paid
+    const completionStatuses = ['completed', 'completed_worker', 'paid'];
+    
     const completedTasks = await Task.find({
       assignedTo: userId,
-      status: 'completed',
-      completedAt: { $exists: true }
+      status: { $in: completionStatuses }
     })
     .populate('posterId', 'name')
-    .select('title description budget completedAt posterId')
-    .sort({ completedAt: -1 })
-    .limit(10);
+    .select('title description budget completedAt createdAt posterId status')
+    .sort({ completedAt: -1, createdAt: -1 })
+    .limit(5); // Show latest 5 for profile page
+
+    console.log('Completed tasks found:', completedTasks.length);
+    console.log('Completed tasks details:', JSON.stringify(completedTasks, null, 2));
+
+    // Get total count of all completed tasks
+    const totalCompletedTasks = await Task.countDocuments({
+      assignedTo: userId,
+      status: { $in: completionStatuses }
+    });
 
     // Format the work history
     const workHistory = completedTasks.map((task, index) => {
-      const completedDate = new Date(task.completedAt || new Date());
+      const completedDate = new Date(task.completedAt || task.createdAt || new Date());
       const now = new Date();
       const diffTime = Math.abs(now.getTime() - completedDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -57,6 +79,11 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: workHistory,
+      meta: {
+        totalCompletedTasks,
+        showing: completedTasks.length,
+        hasMore: totalCompletedTasks > completedTasks.length
+      }
     });
   } catch (error) {
     console.error('Error fetching work history:', error);

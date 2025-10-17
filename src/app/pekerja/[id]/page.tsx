@@ -17,8 +17,13 @@ export default function WorkerDetailPage() {
 
   const [worker, setWorker] = useState<any>(null);
   const [workHistory, setWorkHistory] = useState<any[]>([]);
+  const [workHistoryMeta, setWorkHistoryMeta] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // State untuk kontrol "lihat semua"
+  const [showAllWorkHistory, setShowAllWorkHistory] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   useEffect(() => {
     fetchWorkerDetail();
@@ -40,6 +45,7 @@ export default function WorkerDetailPage() {
           const historyData = await historyResponse.json();
           if (historyData.success) {
             setWorkHistory(historyData.data);
+            setWorkHistoryMeta(historyData.meta);
           }
         } catch (error) {
           console.error('Error fetching work history:', error);
@@ -144,7 +150,9 @@ export default function WorkerDetailPage() {
                   <div className="text-sm text-gray-600">Rating</div>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold">{worker.completedTasks || 0}</div>
+                  <div className="text-2xl font-bold">
+                    {workHistoryMeta?.totalCompletedTasks || worker.completedTasks || 0}
+                  </div>
                   <div className="text-sm text-gray-600">Tugas Selesai</div>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
@@ -172,10 +180,17 @@ export default function WorkerDetailPage() {
           {/* Work History */}
           <Card className="mb-6">
             <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-                <span>💼</span>
-                <span>Riwayat Pekerjaan</span>
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center space-x-2">
+                  <span>💼</span>
+                  <span>Riwayat Pekerjaan</span>
+                </h2>
+                {workHistoryMeta && workHistoryMeta.totalCompletedTasks > 0 && (
+                  <div className="text-sm text-gray-600">
+                    Total: {workHistoryMeta.totalCompletedTasks} pekerjaan selesai
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-4">
                 {workHistory.length === 0 ? (
@@ -183,20 +198,49 @@ export default function WorkerDetailPage() {
                     Belum ada riwayat pekerjaan
                   </p>
                 ) : (
-                  workHistory.map((work) => (
-                    <div key={work.id} className="border-l-2 border-primary-500 pl-4 pb-4">
-                      <div className="text-xs text-gray-500 uppercase mb-1">
-                        {work.date}
+                  <>
+                    {(showAllWorkHistory ? workHistory : workHistory.slice(0, 3)).map((work) => (
+                      <div key={work.id} className="border-l-2 border-primary-500 pl-4 pb-4">
+                        <div className="text-xs text-gray-500 uppercase mb-1">
+                          {work.date}
+                        </div>
+                        <h4 className="font-semibold mb-1">{work.title}</h4>
+                        <p className="text-sm text-gray-600 mb-2">{work.employer}</p>
+                        <p className="text-sm text-gray-700 mb-2">{work.description}</p>
+                        <div className="flex items-center space-x-1 text-sm font-medium text-green-600">
+                          <DollarSign className="h-4 w-4" />
+                          <span>Upah: Rp {work.payment.toLocaleString('id-ID')}</span>
+                        </div>
                       </div>
-                      <h4 className="font-semibold mb-1">{work.title}</h4>
-                      <p className="text-sm text-gray-600 mb-2">{work.employer}</p>
-                      <p className="text-sm text-gray-700 mb-2">{work.description}</p>
-                      <div className="flex items-center space-x-1 text-sm font-medium text-green-600">
-                        <DollarSign className="h-4 w-4" />
-                        <span>Upah: Rp {work.payment.toLocaleString('id-ID')}</span>
+                    ))}
+                    
+                    {/* Show "Lihat Semua" if there are more tasks */}
+                    {workHistoryMeta && workHistoryMeta.hasMore && !showAllWorkHistory && (
+                      <div className="text-center pt-4 border-t">
+                        <div className="text-sm text-gray-600 mb-2">
+                          Menampilkan {workHistoryMeta.showing} dari {workHistoryMeta.totalCompletedTasks} pekerjaan
+                        </div>
+                        <button 
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                          onClick={() => setShowAllWorkHistory(true)}
+                        >
+                          Lihat Semua Riwayat →
+                        </button>
                       </div>
-                    </div>
-                  ))
+                    )}
+                    
+                    {/* Show collapse button when expanded */}
+                    {showAllWorkHistory && workHistoryMeta && workHistoryMeta.hasMore && (
+                      <div className="text-center pt-4 border-t">
+                        <button 
+                          className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                          onClick={() => setShowAllWorkHistory(false)}
+                        >
+                          ↑ Sembunyikan
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>
@@ -205,10 +249,28 @@ export default function WorkerDetailPage() {
           {/* Reviews */}
           <Card className="mb-6">
             <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-                <span>⭐</span>
-                <span>Ulasan ({reviews.length})</span>
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center space-x-2">
+                  <span>⭐</span>
+                  <span>Ulasan ({reviews.length})</span>
+                </h2>
+                {reviews.length > 3 && !showAllReviews && (
+                  <button 
+                    className="text-primary-600 text-sm hover:underline"
+                    onClick={() => setShowAllReviews(true)}
+                  >
+                    Lihat Semua ({reviews.length})
+                  </button>
+                )}
+                {showAllReviews && reviews.length > 3 && (
+                  <button 
+                    className="text-primary-600 text-sm hover:underline"
+                    onClick={() => setShowAllReviews(false)}
+                  >
+                    Sembunyikan
+                  </button>
+                )}
+              </div>
 
               <div className="space-y-4">
                 {reviews.length === 0 ? (
@@ -216,7 +278,7 @@ export default function WorkerDetailPage() {
                     Belum ada ulasan
                   </p>
                 ) : (
-                  reviews.map((review) => (
+                  (showAllReviews ? reviews : reviews.slice(0, 3)).map((review) => (
                     <div key={review.id} className="border-b last:border-0 pb-4 last:pb-0">
                       <div className="flex items-start space-x-3 mb-2">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-gray-600 font-medium flex-shrink-0">
@@ -240,6 +302,36 @@ export default function WorkerDetailPage() {
                       </div>
                     </div>
                   ))
+                )}
+                
+                {/* Show more indicator */}
+                {reviews.length > 3 && !showAllReviews && (
+                  <div className="pt-4 border-t text-center">
+                    <button 
+                      className="text-primary-600 text-sm hover:underline flex items-center justify-center space-x-1"
+                      onClick={() => setShowAllReviews(true)}
+                    >
+                      <span>Lihat {reviews.length - 3} ulasan lainnya</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                
+                {/* Show collapse indicator when expanded */}
+                {showAllReviews && reviews.length > 3 && (
+                  <div className="pt-4 border-t text-center">
+                    <button 
+                      className="text-primary-600 text-sm hover:underline flex items-center justify-center space-x-1"
+                      onClick={() => setShowAllReviews(false)}
+                    >
+                      <span>Sembunyikan ulasan</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
+                  </div>
                 )}
               </div>
             </CardContent>

@@ -16,6 +16,11 @@ const taskApplicantSchema = new Schema({
     default: 'pending',
   },
   message: String,
+  agreedToTerms: {
+    type: Boolean,
+    default: false,
+  },
+  agreedAt: Date,
 });
 
 const agreementClauseSchema = new Schema({
@@ -157,6 +162,13 @@ const taskSchema = new Schema(
     },
     applicants: [taskApplicantSchema],
     agreement: taskAgreementSchema,
+    workerAgreement: {
+      agreedToTerms: {
+        type: Boolean,
+        default: false,
+      },
+      agreedAt: Date,
+    },
     payment: taskPaymentSchema,
     // Completion tracking
     completedAt: Date,

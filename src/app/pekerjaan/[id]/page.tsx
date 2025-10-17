@@ -72,39 +72,13 @@ export default function JobDetailPage() {
       return;
     }
 
-    if (!applicationMessage.trim()) {
-      toast.error('Silakan tulis pesan lamaran');
-      return;
+    // ✅ Simpan pesan ke sessionStorage sebelum redirect ke agreement
+    if (applicationMessage.trim()) {
+      sessionStorage.setItem('applicationMessage', applicationMessage.trim());
     }
 
-    setIsApplying(true);
-    try {
-      const response = await fetch(`/api/tasks/${jobId}/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: applicationMessage
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Lamaran berhasil dikirim!');
-        fetchJobDetail();
-        setApplicationMessage('');
-
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 2000);
-      } else {
-        toast.error(data.error || 'Gagal mengirim lamaran');
-      }
-    } catch (error) {
-      toast.error('Terjadi kesalahan saat mengirim lamaran');
-    } finally {
-      setIsApplying(false);
-    }
+    // Redirect to agreement page instead of direct application
+    router.push(`/pekerjaan/${jobId}/perjanjian?action=apply&from=job-detail`);
   };
 
   const handleAcceptOffer = async () => {
@@ -119,27 +93,8 @@ export default function JobDetailPage() {
       return;
     }
 
-    setIsProcessing(true);
-    try {
-      const response = await fetch(`/api/tasks/${jobId}/accept-offer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Pekerjaan berhasil diterima!');
-        fetchJobDetail();
-      } else {
-        toast.error(data.error || 'Gagal menerima pekerjaan');
-      }
-    } catch (error) {
-      console.error('Error accepting offered job:', error);
-      toast.error('Terjadi kesalahan saat menerima pekerjaan');
-    } finally {
-      setIsProcessing(false);
-    }
+    // Redirect to agreement page instead of direct acceptance
+    router.push(`/pekerjaan/${jobId}/perjanjian?action=accept&from=job-detail`);
   };
 
   const handleRejectOffer = async () => {

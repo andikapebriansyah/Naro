@@ -8,11 +8,38 @@ import { BottomNav } from '@/components/layouts/BottomNav';
 import { Button } from '@/components/ui/button';
 import { useProfileValidation } from '@/lib/hooks/useProfileValidation';
 import Link from 'next/link';
-import { Plus, ChevronRight, MapPin, Calendar, Star, Edit, Trash2, AlertCircle } from 'lucide-react';
+import { Plus, ChevronRight, MapPin, Calendar, Star, Edit, Trash2, MessageCircle, Phone, AlertCircle } from 'lucide-react';
 import { CancelTaskModal } from '@/components/features/tasks/CancelTaskModal';
+import { ReportTaskModal } from '@/components/features/tasks/ReportTaskModal';
 import { toast } from 'sonner';
+import { calculateTaskProgress, formatDuration, formatCurrency } from '@/lib/utils';
 
-type VerificationStatus = 'not_submitted' | 'pending' | 'approved' | 'rejected';
+// ✅ Progress Status Message (using imported functions from utils)
+const getProgressMessage = (progress: any) => {
+  switch (progress.status) {
+    case 'not_started':
+      return `Dimulai dalam ${formatDuration(progress.remainingHours, progress.remainingMinutes)}`;
+    case 'in_progress':
+      return `${formatDuration(progress.remainingHours, progress.remainingMinutes)} tersisa`;
+    case 'finished':
+      return 'Pekerjaan seharusnya sudah selesai';
+    case 'invalid':
+      return 'Jadwal tidak lengkap';
+    default:
+      return 'Status tidak valid';
+  }
+};
+
+const formatEarning = (amount: number) => {
+  if (amount === 0) return 'Rp 0';
+  if (amount >= 1000000) {
+    return `Rp ${(amount / 1000000).toFixed(1)}M`;
+  }
+  if (amount >= 1000) {
+    return `Rp ${(amount / 1000).toFixed(0)}K`;
+  }
+  return formatCurrency(amount);
+};
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -20,9 +47,6 @@ export default function DashboardPage() {
   const { canAccessFeatures, missingFields, isTaskerProfileComplete, canCreateTasks, missingBasicFields } = useProfileValidation();
   const [activeTab, setActiveTab] = useState<'beri-kerja' | 'cari-kerja'>('beri-kerja');
   const [jobTab, setJobTab] = useState<'permintaan' | 'publikasi'>('permintaan');
-  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('not_submitted');
-  const [isLoadingVerification, setIsLoadingVerification] = useState(true);
-  const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [offeredJobs, setOfferedJobs] = useState<any[]>([]);
   const [activeWorkerJobs, setActiveWorkerJobs] = useState<any[]>([]);
   const [allJobs, setAllJobs] = useState<any[]>([]);
@@ -55,6 +79,31 @@ export default function DashboardPage() {
     taskTitle: '',
   });
   const [isCancelling, setIsCancelling] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // ✅ NEW: State untuk Report Modal dengan userType
+  const [reportModal, setReportModal] = useState<{
+    isOpen: boolean;
+    taskId: string;
+    taskTitle: string;
+    userType: 'worker' | 'employer';
+  }>({
+    isOpen: false,
+    taskId: '',
+    taskTitle: '',
+    userType: 'employer',
+  });
+  const [isReporting, setIsReporting] = useState(false);
+  const [isCompleting, setIsCompleting] = useState<string | null>(null);
+
+  // ✅ Update current time every minute for real-time progress
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -62,36 +111,9 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
-  // Fetch verification status when authenticated
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      fetchVerificationStatus();
-    }
-  }, [status, session?.user]);
-
-  const fetchVerificationStatus = async () => {
-    try {
-      setIsLoadingVerification(true);
-      const response = await fetch('/api/users/profile');
-      const data = await response.json();
-      
-      if (data.success && data.data?.ktpVerification?.status) {
-        setVerificationStatus(data.data.ktpVerification.status);
-      } else {
-        setVerificationStatus('not_submitted');
-      }
-    } catch (error) {
-      console.error('Error fetching verification status:', error);
-      setVerificationStatus('not_submitted');
-    } finally {
-      setIsLoadingVerification(false);
-    }
-  };
-
-  // Refresh data when component mounts or tab changes
   useEffect(() => {
     if (status === 'authenticated') {
-      if (activeTab === 'cari-kerja') {
+      if (activeTab === 'cari-kerja' && canAccessFeatures) {
         fetchOfferedJobs();
         fetchActiveWorkerJobs();
         fetchWorkerStats();
@@ -102,15 +124,14 @@ export default function DashboardPage() {
         fetchMyTasks();
       }
     }
-  }, [activeTab, jobTab, status]);
+  }, [activeTab, jobTab, canAccessFeatures, status]);
 
-  // Additional refresh when page becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && status === 'authenticated') {
         if (activeTab === 'beri-kerja') {
           fetchMyTasks();
-        } else if (activeTab === 'cari-kerja') {
+        } else if (activeTab === 'cari-kerja' && canAccessFeatures) {
           fetchOfferedJobs();
           fetchActiveWorkerJobs();
           fetchWorkerStats();
@@ -123,48 +144,43 @@ export default function DashboardPage() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [activeTab, status]);
+  }, [activeTab, canAccessFeatures, status]);
 
   const fetchOfferedJobs = async () => {
     try {
-      const response = await fetch('/api/jobs?searchMethod=find_worker&limit=10');
-      
-      if (!response.ok) {
-        console.error('Offered jobs API error:', response.status, response.statusText);
-        setOfferedJobs([]);
-        return;
-      }
-      
-      const responseText = await response.text();
-      if (!responseText) {
-        console.error('Empty response from offered jobs API');
-        setOfferedJobs([]);
-        return;
-      }
-      
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (jsonError) {
-        console.error('JSON parse error in offered jobs:', jsonError);
-        setOfferedJobs([]);
-        return;
-      }
-      
-      if (data.success) {
-        const permintaanJobs = data.data.filter((job: any) => {
-          const jobOwnerId = job.postedBy?._id || job.postedBy;
-          const currentUserId = session?.user?.id;
-          const isOwn = jobOwnerId === currentUserId;
-          const isPendingForUser = job.status === 'pending' && job.assignedTo === currentUserId;
-          
-          return (!isOwn && job.status === 'open') || isPendingForUser;
+      console.log('=== Fetching ALL permintaan (open + pending for me) ===');
+      console.log('Current user:', session?.user?.id);
+
+      const availableResponse = await fetch('/api/jobs?searchMethod=find_worker&limit=50');
+      const availableData = await availableResponse.json();
+
+      let availableJobs: any[] = [];
+      if (availableData.success) {
+        availableJobs = availableData.data.filter((job: any) => {
+          const jobOwnerId = job.postedBy?._id?.toString() || job.postedBy?.toString();
+          const isNotMine = jobOwnerId !== session?.user?.id;
+          const isOpen = ['open', 'draft'].includes(job.status);
+          return isNotMine && isOpen;
         });
-        
-        setOfferedJobs(permintaanJobs.slice(0, 3));
-      } else {
-        setOfferedJobs([]);
+        console.log('Available jobs (open/draft):', availableJobs.length);
       }
+
+      const workerResponse = await fetch('/api/worker-jobs');
+      const workerData = await workerResponse.json();
+
+      let pendingOffers: any[] = [];
+      if (workerData.success) {
+        pendingOffers = workerData.data.filter((job: any) =>
+          job.status === 'pending' && job.isAssignedWorker === true
+        );
+        console.log('Pending offers for me:', pendingOffers.length);
+      }
+
+      const allPermintaanJobs = [...availableJobs, ...pendingOffers];
+      console.log('Total permintaan jobs:', allPermintaanJobs.length);
+
+      setOfferedJobs(allPermintaanJobs.slice(0, 3));
+
     } catch (error) {
       console.error('Error fetching offered jobs:', error);
       setOfferedJobs([]);
@@ -173,34 +189,48 @@ export default function DashboardPage() {
 
   const fetchActiveWorkerJobs = async () => {
     try {
+      console.log('Fetching active worker jobs for user:', session?.user?.id);
+
       const response = await fetch('/api/worker-jobs');
-      
+
       if (!response.ok) {
+        console.error('Active worker jobs API error:', response.status, response.statusText);
         setActiveWorkerJobs([]);
         return;
       }
-      
+
       const responseText = await response.text();
+
       if (!responseText) {
+        console.error('Empty response from active worker jobs API');
         setActiveWorkerJobs([]);
         return;
       }
-      
+
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (jsonError) {
+        console.error('JSON parse error in active worker jobs:', jsonError);
         setActiveWorkerJobs([]);
         return;
       }
-      
+
       if (data.success) {
         const activeJobs = data.data.filter((job: any) => {
-          return ['pending', 'accepted', 'active'].includes(job.status);
+          const isActiveStatus = ['accepted', 'active'].includes(job.status);
+          console.log('Worker job filtering:', {
+            jobId: job._id,
+            status: job.status,
+            isActive: isActiveStatus
+          });
+          return isActiveStatus;
         });
-        
+
+        console.log('Filtered active worker jobs:', activeJobs.length);
         setActiveWorkerJobs(activeJobs.slice(0, 2));
       } else {
+        console.error('Active worker jobs API failed:', data.error);
         setActiveWorkerJobs([]);
       }
     } catch (error) {
@@ -211,43 +241,77 @@ export default function DashboardPage() {
 
   const fetchAllJobs = async () => {
     try {
+      console.log('Fetching all publication jobs for user:', session?.user?.id);
       const response = await fetch('/api/jobs?limit=20&searchMethod=publication');
       const data = await response.json();
-      
+
       if (data.success) {
+        console.log('Raw publication jobs:', data.data);
+
         const filteredJobs = data.data.filter((job: any) => {
           const jobOwnerId = job.postedBy?._id || job.postedBy;
           const currentUserId = session?.user?.id;
-          return jobOwnerId !== currentUserId;
+
+          const shouldInclude = jobOwnerId !== currentUserId;
+
+          console.log('Publication job filter:', {
+            jobId: job._id,
+            title: job.title,
+            jobOwner: jobOwnerId,
+            currentUser: currentUserId,
+            shouldInclude
+          });
+
+          return shouldInclude;
         });
-        
+
+        console.log('Filtered publication jobs count:', filteredJobs.length);
         setAllJobs(filteredJobs);
+      } else {
+        console.error('Publication jobs API failed:', data.error);
+        setAllJobs([]);
       }
     } catch (error) {
       console.error('Error fetching all jobs:', error);
+      setAllJobs([]);
     }
   };
 
   const fetchMyTasks = async () => {
     try {
+      console.log('🔄 Fetching my tasks for employer...');
       const response = await fetch('/api/my-tasks?status=ongoing&limit=5');
       const data = await response.json();
-      
+      console.log('📋 My tasks response:', data);
+      console.log('📊 Tasks detail:', data.data?.map((t: any) => ({ 
+        id: t._id, 
+        title: t.title, 
+        status: t.status,
+        assignedTo: t.assignedTo?.name 
+      })));
+
       if (data.success) {
         setMyTasks(data.data);
-        
+
         const statsResponse = await fetch('/api/my-tasks');
         const statsData = await statsResponse.json();
-        
+        console.log('Employer Stats response:', statsData);
+
         if (statsData.success) {
           const tasks = statsData.data;
           setTaskStats({
-            active: tasks.filter((t: any) => ['pending', 'accepted', 'active', 'proses'].includes(t.status) && t.assignedTo).length,
-            completed: tasks.filter((t: any) => ['completed', 'selesai'].includes(t.status)).length,
-            pending: tasks.filter((t: any) => 
-              (t.status === 'open' && (t.applicants > 0 || !t.assignedTo)) || 
-              (t.status === 'pending' && t.assignedTo)
+            active: tasks.filter((t: any) =>
+              ['accepted', 'active', 'proses'].includes(t.status) && t.assignedTo
             ).length,
+            completed: tasks.filter((t: any) =>
+              ['completed', 'selesai'].includes(t.status)
+            ).length,
+            pending: tasks.filter((t: any) => {
+              if (t.status === 'open' && !t.assignedTo) return true;
+              if (['open', 'pending'].includes(t.status) && t.assignedTo) return true;
+              if (t.status === 'completed_worker' && t.assignedTo) return true;
+              return false;
+            }).length,
             total: tasks.length,
             earning: 2450000,
             rating: 4.8
@@ -261,18 +325,44 @@ export default function DashboardPage() {
 
   const fetchWorkerStats = async () => {
     try {
+      console.log('Fetching worker stats...');
       const response = await fetch('/api/worker-jobs');
       const data = await response.json();
-      
+      console.log('Worker stats response:', data);
+
       if (data.success) {
         const workerJobs = data.data;
+
+        // ✅ NEW: Calculate real earning from completed tasks
+        const completedJobs = workerJobs.filter((job: any) =>
+          ['completed', 'selesai'].includes(job.status)
+        );
+
+        const totalEarning = completedJobs.reduce((total: number, job: any) => {
+          return total + (job.budget || 0);
+        }, 0);
+
+        console.log('💰 Calculated earnings:', {
+          completedJobs: completedJobs.length,
+          totalEarning: totalEarning,
+          jobs: completedJobs.map((j: any) => ({
+            title: j.title,
+            budget: j.budget,
+            status: j.status
+          }))
+        });
+
         setWorkerStats({
-          active: workerJobs.filter((job: any) => ['pending', 'accepted', 'active'].includes(job.status)).length,
-          completed: workerJobs.filter((job: any) => job.status === 'completed').length,
-          pending: workerJobs.filter((job: any) => job.status === 'pending').length,
+          active: workerJobs.filter((job: any) =>
+            ['accepted', 'active', 'proses'].includes(job.status)
+          ).length,
+          completed: completedJobs.length,
+          pending: workerJobs.filter((job: any) =>
+            job.status === 'pending' || job.status === 'completed_worker'
+          ).length,
           total: workerJobs.length,
-          earning: 2450000,
-          rating: 4.8
+          earning: totalEarning, // ✅ Use calculated earning
+          rating: 4.8 // Keep static for now, or calculate from reviews
         });
       } else {
         setWorkerStats({
@@ -297,10 +387,6 @@ export default function DashboardPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return `Rp ${amount.toLocaleString('id-ID')}`;
-  };
-
   const getCategoryLabel = (cat: string) => {
     const categoryMap: { [key: string]: string } = {
       kebersihan: 'Kebersihan',
@@ -315,11 +401,11 @@ export default function DashboardPage() {
   };
 
   const canEditTask = (task: any) => {
-    return ['draft', 'open', 'pending'].includes(task.status) && !task.assignedTo;
+    return ['draft', 'open', 'pending'].includes(task.status);
   };
 
   const canCancelTask = (task: any) => {
-    return ['draft', 'open', 'pending', 'accepted'].includes(task.status);
+    return ['draft', 'open', 'pending'].includes(task.status);
   };
 
   const handleCancelTask = (taskId: string, taskTitle: string) => {
@@ -361,27 +447,30 @@ export default function DashboardPage() {
   const handleAcceptOfferedJob = async (jobId: string) => {
     try {
       setProcessingJobId(jobId);
-      
+
+      console.log('Accepting offered job:', jobId);
+
       const response = await fetch(`/api/tasks/${jobId}/accept-offer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         fetchOfferedJobs();
         fetchActiveWorkerJobs();
         fetchWorkerStats();
-        alert('Pekerjaan berhasil diterima! Cek di bagian pekerjaan aktif.');
+        toast.success('Pekerjaan berhasil diterima! Cek di bagian pekerjaan aktif.');
       } else {
-        alert(data.error || 'Gagal menerima pekerjaan');
+        console.error('Accept offer failed:', data.error);
+        toast.error(data.error || 'Gagal menerima pekerjaan');
       }
     } catch (error) {
       console.error('Error accepting offered job:', error);
-      alert('Terjadi kesalahan saat menerima pekerjaan');
+      toast.error('Terjadi kesalahan saat menerima pekerjaan');
     } finally {
       setProcessingJobId(null);
     }
@@ -390,52 +479,143 @@ export default function DashboardPage() {
   const handleRejectOfferedJob = async (jobId: string) => {
     try {
       setProcessingJobId(jobId);
-      
+
       const response = await fetch(`/api/tasks/${jobId}/reject-offer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         fetchOfferedJobs();
-        alert('Pekerjaan berhasil ditolak');
+        toast.success('Pekerjaan berhasil ditolak');
       } else {
-        alert(data.error || 'Gagal menolak pekerjaan');
+        toast.error(data.error || 'Gagal menolak pekerjaan');
       }
     } catch (error) {
       console.error('Error rejecting offered job:', error);
-      alert('Terjadi kesalahan saat menolak pekerjaan');
+      toast.error('Terjadi kesalahan saat menolak pekerjaan');
     } finally {
       setProcessingJobId(null);
     }
   };
 
-  const handleCreateTaskClick = () => {
-    if (!canCreateTasks) {
-      if (verificationStatus !== 'approved') {
-        if (verificationStatus === 'pending') {
-          toast.error('Verifikasi Anda sedang diproses. Harap tunggu');
-        } else if (verificationStatus === 'rejected') {
-          toast.error('Verifikasi Anda ditolak. Silakan submit ulang');
-          router.push('/verifikasi');
+  // ✅ NEW: Handle Complete Task
+  const handleCompleteTask = async (taskId: string, userType: 'worker' | 'employer') => {
+    setIsCompleting(taskId);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userType }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh data
+        if (activeTab === 'beri-kerja') {
+          fetchMyTasks();
         } else {
-          toast.error('Lengkapi verifikasi KTP terlebih dahulu untuk membuat tugas');
-          router.push('/verifikasi');
+          fetchActiveWorkerJobs();
+          fetchWorkerStats();
         }
-      } else if (missingBasicFields.length > 0) {
-        toast.error(`Lengkapi profil terlebih dahulu: ${missingBasicFields.join(', ')}`);
-        router.push('/profil');
+        toast.success(data.message);
+      } else {
+        toast.error(data.error || 'Gagal menyelesaikan tugas');
       }
-      return;
+    } catch (error) {
+      console.error('Error completing task:', error);
+      toast.error('Terjadi kesalahan saat menyelesaikan tugas');
+    } finally {
+      setIsCompleting(null);
     }
-    router.push('/tugas/buat');
   };
 
-  if (status === 'loading' || isLoadingVerification) {
+  // ✅ NEW: Handle Report Task - dengan userType parameter
+  const handleReportTask = (taskId: string, taskTitle: string, userType: 'worker' | 'employer') => {
+    setReportModal({
+      isOpen: true,
+      taskId,
+      taskTitle,
+      userType, // ✅ Set userType saat membuka modal
+    });
+  };
+
+  const confirmReportTask = async (reason: string, description: string, evidenceFiles: File[]) => {
+    setIsReporting(true);
+    try {
+      // ✅ Create FormData untuk support file upload
+      const formData = new FormData();
+      formData.append('reason', reason);
+      formData.append('description', description);
+
+      // ✅ Append semua file evidence
+      evidenceFiles.forEach((file) => {
+        formData.append('evidence', file);
+      });
+
+      const response = await fetch(`/api/tasks/${reportModal.taskId}/report`, {
+        method: 'POST',
+        body: formData, // ✅ Kirim FormData, bukan JSON
+        // ❌ JANGAN set Content-Type header, browser akan set otomatis dengan boundary
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh data
+        if (activeTab === 'beri-kerja') {
+          fetchMyTasks();
+        } else {
+          fetchActiveWorkerJobs();
+          fetchWorkerStats();
+        }
+        setReportModal({ isOpen: false, taskId: '', taskTitle: '', userType: 'employer' });
+        toast.success(data.message || 'Laporan berhasil dikirim dengan bukti pendukung');
+      } else {
+        toast.error(data.error || 'Gagal mengirim laporan');
+      }
+    } catch (error) {
+      console.error('Error reporting task:', error);
+      toast.error('Terjadi kesalahan saat mengirim laporan');
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
+  // ✅ Handle WhatsApp Chat
+  const handleChat = (phone?: string) => {
+    if (!phone) {
+      toast.error('Nomor WhatsApp tidak tersedia');
+      return;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    let formattedPhone = cleanPhone;
+    if (!cleanPhone.startsWith('62')) {
+      formattedPhone = '62' + cleanPhone.replace(/^0/, '');
+    }
+
+    window.open(`https://wa.me/${formattedPhone}`, '_blank');
+  };
+
+  // ✅ Handle Phone Call
+  const handleCall = (phone?: string) => {
+    if (!phone) {
+      toast.error('Nomor telepon tidak tersedia');
+      return;
+    }
+
+    window.location.href = `tel:${phone}`;
+  };
+
+  if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -456,71 +636,22 @@ export default function DashboardPage() {
           {/* User Welcome */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">
-              Halo, {session.user.name}! 
+              Halo, {session.user.name}! 👋
             </h1>
             <p className="text-gray-600">Selamat datang kembali di Naro</p>
           </div>
 
-          {/* Verification Status Alert - NOT SUBMITTED */}
-          {verificationStatus === 'not_submitted' && (
+          {/* Verification Alert */}
+          {!session.user.isVerified && (
             <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl p-4 mb-6 border-l-4 border-orange-500">
               <div className="flex gap-3">
                 <div className="text-xl">⚠️</div>
                 <div className="flex-1">
                   <div className="text-sm font-semibold text-orange-800">Verifikasi Diperlukan</div>
-                  <div className="text-xs text-orange-700">Lengkapi verifikasi untuk membuat tugas dan melamar pekerjaan</div>
+                  <div className="text-xs text-orange-700">Lengkapi verifikasi untuk menggunakan semua fitur</div>
                 </div>
                 <Link href="/verifikasi">
                   <Button size="sm" className="text-xs">Verifikasi</Button>
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Verification Status Alert - PENDING */}
-          {verificationStatus === 'pending' && (
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 mb-6 border-l-4 border-blue-500">
-              <div className="flex gap-3">
-                <div className="text-xl">⏳</div>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-blue-800">Menunggu Verifikasi</div>
-                  <div className="text-xs text-blue-700">Verifikasi Anda sedang diproses. Kami akan memberitahu Anda ketika sudah selesai</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Verification Status Alert - REJECTED */}
-          {verificationStatus === 'rejected' && (
-            <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-4 mb-6 border-l-4 border-red-500">
-              <div className="flex gap-3">
-                <div className="text-xl">❌</div>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-red-800">Verifikasi Ditolak</div>
-                  <div className="text-xs text-red-700">Verifikasi Anda ditolak. Silakan submit ulang dengan foto yang lebih jelas</div>
-                </div>
-                <Link href="/verifikasi">
-                  <Button size="sm" className="text-xs bg-red-600 hover:bg-red-700">Coba Lagi</Button>
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {/* Profile Incomplete Alert - Only show if verified but profile incomplete */}
-          {verificationStatus === 'approved' && missingBasicFields.length > 0 && (
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 mb-6 border-l-4 border-blue-500">
-              <div className="flex gap-3">
-                <div className="text-xl">ℹ️</div>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-blue-800">Lengkapi Profil</div>
-                  <div className="text-xs text-blue-700">
-                    Lengkapi: {missingBasicFields.join(', ')} untuk membuat tugas
-                  </div>
-                </div>
-                <Link href="/profil">
-                  <Button size="sm" variant="outline" className="text-xs border-blue-600 text-blue-600">
-                    Lengkapi
-                  </Button>
                 </Link>
               </div>
             </div>
@@ -532,21 +663,20 @@ export default function DashboardPage() {
               <div className="flex">
                 <button
                   onClick={() => setActiveTab('beri-kerja')}
-                  className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'beri-kerja'
-                      ? 'bg-primary-600 text-white'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
+                  className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === 'beri-kerja'
+                    ? 'bg-primary-600 text-white'
+                    : 'text-gray-700 hover:text-gray-900'
+                    }`}
                 >
                   🏢 Mode Pemberi Kerja
                 </button>
                 <button
                   onClick={() => setActiveTab('cari-kerja')}
-                  className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'cari-kerja'
-                      ? 'bg-primary-600 text-white'
-                      : 'text-gray-700 hover:text-gray-900'
-                  }`}
+                  className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === 'cari-kerja'
+                    ? 'bg-primary-600 text-white'
+                    : 'text-gray-700 hover:text-gray-900'
+                    }`}
+                  disabled={!canAccessFeatures}
                 >
                   💼 Mode Cari Kerja
                 </button>
@@ -557,38 +687,20 @@ export default function DashboardPage() {
           {/* Content based on active tab */}
           {activeTab === 'beri-kerja' ? (
             <>
-              {/* Hero Card */}
+              {/* Employer Mode Content */}
               <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-6 mb-6 text-white shadow-lg">
                 <div className="flex justify-between items-center">
                   <div className="flex-1">
                     <h2 className="text-xl font-bold mb-2">Butuh Bantuan Pekerjaan?</h2>
                     <p className="text-sm opacity-90 mb-4">
-                      Post tugas dan temukan pekerja terbaik
+                      Posting tugas dan temukan pekerja terbaik
                     </p>
-                    <button 
-                      onClick={handleCreateTaskClick}
-                      disabled={!canCreateTasks || verificationStatus === 'pending'}
-                      className={`px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ${
-                        canCreateTasks && verificationStatus !== 'pending'
-                          ? 'bg-white text-primary-600 hover:shadow-lg active:scale-95' 
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      }`}
-                    >
-                      <Plus className="w-4 h-4" />
-                      Buat Tugas Baru
-                    </button>
-                    {!canCreateTasks && (
-                      <p className="text-xs mt-2 opacity-90">
-                        {verificationStatus === 'pending'
-                          ? '⏳ Menunggu verifikasi'
-                          : verificationStatus === 'rejected'
-                          ? '❌ Verifikasi ditolak'
-                          : verificationStatus === 'not_submitted'
-                          ? '🔒 Verifikasi diperlukan' 
-                          : `🔒 Lengkapi: ${missingBasicFields.join(', ')}`
-                        }
-                      </p>
-                    )}
+                    <Link href="/tugas/buat">
+                      <button className="bg-white text-primary-600 px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-transform active:scale-95">
+                        <Plus className="w-4 h-4" />
+                        Buat Tugas Baru
+                      </button>
+                    </Link>
                   </div>
                   <div className="text-6xl">🚀</div>
                 </div>
@@ -618,7 +730,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* My Active Tasks */}
+              {/* My Active Tasks with Real-time Progress */}
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-bold text-gray-900">Tugas Berlangsung</h2>
@@ -626,68 +738,202 @@ export default function DashboardPage() {
                     Riwayat <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>
-                
+
                 {myTasks.length > 0 ? (
-                  <div className="space-y-3">
-                    {myTasks.slice(0, 2).map((task) => (
-                      <div key={task._id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <div className="text-sm font-semibold text-gray-900 mb-1">{task.title}</div>
-                            <div className="text-xs text-gray-500">{getCategoryLabel(task.category)}</div>
+                  <div className="space-y-4">
+                    {myTasks.slice(0, 2).map((task) => {
+                      // ✅ Calculate real-time progress
+                      const progress = calculateTaskProgress(
+                        task.startDate,
+                        task.startTime,
+                        task.endDate,
+                        task.endTime
+                      );
+
+                      return (
+                        <div key={task._id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg mb-1">{task.title}</h3>
+                              <p className="text-sm text-gray-600">{getCategoryLabel(task.category)}</p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${task.status === 'completed_worker' ? 'bg-purple-100 text-purple-700' :
+                              ['active', 'accepted', 'proses'].includes(task.status) ? 'bg-green-100 text-green-700' :
+                                task.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                  task.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                                    'bg-gray-100 text-gray-700'
+                              }`}>
+                              {task.status === 'completed_worker' ? 'Menunggu Konfirmasi' :
+                                ['active', 'accepted', 'proses'].includes(task.status) ? 'Proses' :
+                                  task.status === 'pending' ? 'Pending' :
+                                    task.status === 'completed' ? 'Selesai' :
+                                      task.status === 'open' ? 'Open' : 'Unknown'}
+                            </span>
                           </div>
-                          <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${
-                            task.status === 'active' ? 'bg-green-100 text-green-700' : 
-                            task.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
-                            task.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {task.status === 'active' ? 'Active' : 
-                             task.status === 'accepted' ? 'Accepted' : 
-                             task.status === 'pending' ? 'Pending' : 
-                             task.status === 'open' ? 'Open' : 'Unknown'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {task.location || 'Lokasi tidak tersedia'}
+
+                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+                            <div className="flex items-center space-x-1">
+                              <MapPin className="w-4 h-4" />
+                              <span>{task.location || 'Lokasi tidak tersedia'}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            📅 Hari ini, 14:00
+
+                          {/* ✅ Complete Schedule Info */}
+                          <div className="bg-blue-50 rounded-lg p-3 mb-4">
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                              <div>
+                                <div className="text-gray-500 mb-1">Tanggal Mulai</div>
+                                <div className="font-semibold text-gray-900">
+                                  {task.startDate ? new Date(task.startDate).toLocaleDateString('id-ID', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  }) : 'Belum ditentukan'}
+                                </div>
+                                <div className="text-primary-600 font-medium mt-1">
+                                  {task.startTime || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500 mb-1">Tanggal Selesai</div>
+                                <div className="font-semibold text-gray-900">
+                                  {task.endDate ? new Date(task.endDate).toLocaleDateString('id-ID', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  }) : 'Belum ditentukan'}
+                                </div>
+                                <div className="text-primary-600 font-medium mt-1">
+                                  {task.endTime || '-'}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                          <div className="text-lg font-bold text-primary-600">
-                            {formatCurrency(task.budget)}
-                          </div>
-                          <div className="flex gap-2">
-                            {canEditTask(task) && (
-                              <Link href={`/tugas/${task._id}/edit`}>
-                                <button className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1">
-                                  <Edit className="h-3 w-3" />
-                                  Edit
+
+                          {/* ✅ Worker Info with Real-time Progress */}
+                          {['accepted', 'active', 'proses'].includes(task.status) && task.assignedTo ? (
+                            <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold">
+                                  {task.assignedTo?.name ? task.assignedTo.name.substring(0, 2).toUpperCase() : 'NA'}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="font-semibold text-gray-900">
+                                    {task.assignedTo?.name || 'Pekerja'}
+                                  </div>
+                                  <div className="text-sm text-gray-600 flex items-center gap-1">
+                                    <span className="text-yellow-500">⭐</span>
+                                    <span>{task.assignedTo?.rating || '4.8'}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Progress Bar */}
+                              <div className="mb-3">
+                                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                                  <div
+                                    className={`h-2 rounded-full transition-all ${progress.status === 'finished'
+                                      ? 'bg-blue-500'
+                                      : progress.status === 'not_started'
+                                        ? 'bg-yellow-500'
+                                        : 'bg-green-500'
+                                      }`}
+                                    style={{ width: `${progress.percentage}%` }}
+                                  ></div>
+                                </div>
+                                <div className="text-xs text-gray-600 text-center">
+                                  <span className="font-semibold">{progress.percentage}%</span>
+                                  {' • '}
+                                  <span>{getProgressMessage(progress)}</span>
+                                </div>
+                              </div>
+
+                              {/* Contact Buttons */}
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleChat(task.assignedTo?.phone)}
+                                  className="flex-1 bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 hover:bg-gray-50"
+                                >
+                                  <MessageCircle className="w-3 h-3" />
+                                  Chat WhatsApp
+                                </button>
+                                <button
+                                  onClick={() => handleCall(task.assignedTo?.phone)}
+                                  className="flex-1 bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 hover:bg-gray-50"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                  Telepon
+                                </button>
+                              </div>
+                            </div>
+                          ) : task.status === 'completed_worker' && task.assignedTo ? (
+                            <div className="bg-purple-50 rounded-lg p-3 mb-4 border-2 border-purple-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <AlertCircle className="w-5 h-5 text-purple-600" />
+                                <h4 className="font-semibold text-purple-900">Menunggu Konfirmasi Anda</h4>
+                              </div>
+                              <p className="text-sm text-purple-700">
+                                Pekerja telah menyelesaikan tugas. Silakan periksa hasil pekerjaan dan berikan konfirmasi penyelesaian.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="bg-yellow-50 rounded-lg p-3 mb-4 text-center text-sm text-yellow-700">
+                              Menunggu pekerja menerima tugas
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <span className="text-lg font-bold text-primary-600">
+                              {formatCurrency(task.budget)}
+                            </span>
+                            <div className="flex gap-2">
+                              {canEditTask(task) && (
+                                <Link href={`/tugas/${task._id}/edit`}>
+                                  <button className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1">
+                                    <Edit className="h-3 w-3" />
+                                    Edit
+                                  </button>
+                                </Link>
+                              )}
+                              {canCancelTask(task) && (
+                                <button
+                                  onClick={() => handleCancelTask(task._id, task.title)}
+                                  className="bg-gray-100 text-red-600 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  Batalkan
+                                </button>
+                              )}
+                              {/* ✅ NEW: Button Laporkan - dengan userType 'employer' */}
+                              {['accepted', 'active', 'proses'].includes(task.status) && task.assignedTo && (
+                                <button
+                                  onClick={() => handleReportTask(task._id, task.title, 'employer')}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold"
+                                >
+                                  Laporkan
+                                </button>
+                              )}
+                              {/* ✅ NEW: Button Selesai */}
+                              {['accepted', 'active', 'proses', 'completed_worker'].includes(task.status) && task.assignedTo && (
+                                <button
+                                  onClick={() => handleCompleteTask(task._id, 'employer')}
+                                  disabled={isCompleting === task._id}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                >
+                                  {isCompleting === task._id ? 'Proses...' :
+                                    task.status === 'completed_worker' ? 'Konfirmasi' : 'Selesai'}
+                                </button>
+                              )}
+                              <Link href={`/tugas/${task._id}`}>
+                                <button className="bg-primary-100 text-primary-600 px-4 py-2 rounded-lg text-xs font-semibold">
+                                  Detail →
                                 </button>
                               </Link>
-                            )}
-                            {canCancelTask(task) && (
-                              <button 
-                                onClick={() => handleCancelTask(task._id, task.title)}
-                                className="bg-gray-100 text-red-600 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                                Batalkan
-                              </button>
-                            )}
-                            <Link href={`/tugas/${task._id}`}>
-                              <button className="bg-primary-100 text-primary-600 px-4 py-2 rounded-lg text-xs font-semibold">
-                                Detail →
-                              </button>
-                            </Link>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="bg-white rounded-xl p-8 text-center text-gray-500">
@@ -706,7 +952,7 @@ export default function DashboardPage() {
                   <div className="text-sm font-semibold text-gray-900 mb-1">Cari Tasker</div>
                   <div className="text-xs text-gray-500">Temukan pekerja</div>
                 </Link>
-                <Link href={`/riwayat?mode=${activeTab === 'beri-kerja' ? 'employer' : 'worker'}`} className="bg-white rounded-xl p-5 text-center border-2 border-gray-100 transition-transform active:scale-95">
+                <Link href={`/riwayat?mode=employer`} className="bg-white rounded-xl p-5 text-center border-2 border-gray-100 transition-transform active:scale-95">
                   <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center text-3xl mx-auto mb-3">
                     📝
                   </div>
@@ -717,39 +963,23 @@ export default function DashboardPage() {
             </>
           ) : (
             <>
-              {/* Cari Kerja Mode */}
-              {/* Alert Card - Penghasilan */}
-              <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 mb-6 border-l-4 border-blue-500">
+              {/* Worker Mode Content */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-100 rounded-xl p-4 mb-6 border-l-4 border-green-500">
                 <div className="flex gap-3">
-                  <div className="text-xl">💰</div>
-                  <div>
-                    <div className="text-sm font-semibold text-blue-800">Penghasilan Bulan Ini</div>
-                    <div className="text-xs text-blue-700">Rp 2.450.000 dari 8 pekerjaan selesai</div>
+                  <div className="text-2xl">💰</div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-green-800">Total Penghasilan</div>
+                    <div className="text-2xl font-bold text-green-900 mt-1">
+                      {formatCurrency(workerStats.earning)}
+                    </div>
+                    <div className="text-xs text-green-700 mt-1">
+                      dari {workerStats.completed} pekerjaan selesai
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Profile Incomplete Alert for Workers */}
-              {verificationStatus === 'approved' && !canAccessFeatures && (
-                <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl p-4 mb-6 border-l-4 border-yellow-500">
-                  <div className="flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-yellow-700 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-yellow-800">Profil Belum Lengkap</div>
-                      <div className="text-xs text-yellow-700 mb-2">
-                        Lengkapi profil untuk melamar pekerjaan: {missingFields.join(', ')}
-                      </div>
-                      <Link href="/profil">
-                        <Button size="sm" variant="outline" className="text-xs border-yellow-600 text-yellow-700 hover:bg-yellow-100">
-                          Lengkapi Profil
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Status Ketersediaan */}
+              {/* Availability Status */}
               <div className="bg-white rounded-xl p-4 mb-6 shadow-sm">
                 <div className="flex justify-between items-center">
                   <div className="flex-1">
@@ -760,13 +990,11 @@ export default function DashboardPage() {
                   </div>
                   <button
                     onClick={() => setIsAvailable(!isAvailable)}
-                    className={`w-14 h-8 rounded-full relative transition-colors ${
-                      isAvailable ? 'bg-primary-500' : 'bg-gray-300'
-                    }`}
+                    className={`w-14 h-8 rounded-full relative transition-colors ${isAvailable ? 'bg-primary-500' : 'bg-gray-300'
+                      }`}
                   >
-                    <div className={`absolute w-6 h-6 bg-white rounded-full top-1 transition-transform shadow-sm ${
-                      isAvailable ? 'right-1' : 'left-1'
-                    }`}></div>
+                    <div className={`absolute w-6 h-6 bg-white rounded-full top-1 transition-transform shadow-sm ${isAvailable ? 'right-1' : 'left-1'
+                      }`}></div>
                   </button>
                 </div>
               </div>
@@ -785,7 +1013,9 @@ export default function DashboardPage() {
                 </div>
                 <div className="bg-white rounded-xl p-4 text-center shadow-sm">
                   <div className="text-2xl mb-2">💵</div>
-                  <div className="text-lg font-bold text-gray-900">2.4M</div>
+                  <div className="text-lg font-bold text-gray-900">
+                    {formatEarning(workerStats.earning)}
+                  </div>
                   <div className="text-xs text-gray-500 font-medium">Earning</div>
                 </div>
                 <div className="bg-white rounded-xl p-4 text-center shadow-sm">
@@ -795,7 +1025,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Active Worker Jobs */}
+              {/* Active Worker Jobs with Real-time Progress */}
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-bold text-gray-900">Pekerjaan Berlangsung</h2>
@@ -803,68 +1033,169 @@ export default function DashboardPage() {
                     Riwayat <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>
-                
+
                 {activeWorkerJobs.length > 0 ? (
-                  <div className="space-y-3">
-                    {activeWorkerJobs.map((job) => (
-                      <div key={job._id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <div className="text-sm font-semibold text-gray-900 mb-1">{job.title}</div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1">
-                              <span>{job.poster?.name || 'Anonymous'}</span>
-                              {job.poster?.isVerified && <Star className="w-3 h-3 text-yellow-500 fill-current" />}
+                  <div className="space-y-4">
+                    {activeWorkerJobs.map((job) => {
+                      // ✅ Calculate real-time progress
+                      const progress = calculateTaskProgress(
+                        job.startDate,
+                        job.startTime,
+                        job.endDate,
+                        job.endTime
+                      );
+
+                      return (
+                        <div key={job._id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg mb-1">{job.title}</h3>
+                              <p className="text-sm text-gray-600 flex items-center gap-1">
+                                <span>{job.poster?.name || 'Anonymous'}</span>
+                                {job.poster?.isVerified && <Star className="w-3 h-3 text-yellow-500 fill-current" />}
+                              </p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${job.status === 'completed_worker' ? 'bg-purple-100 text-purple-700' :
+                              ['active', 'accepted', 'proses'].includes(job.status) ? 'bg-green-100 text-green-700' :
+                                job.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                                  'bg-gray-100 text-gray-700'
+                              }`}>
+                              {job.status === 'completed_worker' ? 'Menunggu Konfirmasi' :
+                                ['active', 'accepted', 'proses'].includes(job.status) ? 'Proses' :
+                                  job.status === 'completed' ? 'Selesai' : 'Unknown'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+                            <div className="flex items-center space-x-1">
+                              <MapPin className="w-4 h-4" />
+                              <span>{job.location || 'Lokasi tidak tersedia'}</span>
                             </div>
                           </div>
-                          <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${
-                            job.isAssignedWorker && job.status === 'active' ? 'bg-green-100 text-green-700' : 
-                            job.isAssignedWorker && job.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
-                            !job.isAssignedWorker && job.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                            job.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
-                            job.status === 'active' ? 'bg-green-100 text-green-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {job.isAssignedWorker ? (
-                              job.status === 'active' ? 'Sedang Berlangsung' : 
-                              job.status === 'accepted' ? 'Diterima' : 
-                              job.status === 'pending' ? 'Menunggu' : 
-                              job.status === 'completed' ? 'Selesai' :
-                              job.status === 'rejected' ? 'Ditolak' : 'Unknown'
-                            ) : (
-                              job.status === 'pending' ? 'Menunggu' :
-                              job.status === 'accepted' ? 'Diterima' :
-                              job.status === 'active' ? 'Sedang Berlangsung' :
-                              job.status === 'completed' ? 'Selesai' :
-                              job.status === 'rejected' ? 'Ditolak' : 'Unknown'
-                            )}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {job.location || 'Lokasi tidak tersedia'}
+
+                          {/* ✅ Complete Schedule Info */}
+                          <div className="bg-blue-50 rounded-lg p-3 mb-4">
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                              <div>
+                                <div className="text-gray-500 mb-1">Tanggal Mulai</div>
+                                <div className="font-semibold text-gray-900">
+                                  {job.startDate ? new Date(job.startDate).toLocaleDateString('id-ID', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  }) : 'Belum ditentukan'}
+                                </div>
+                                <div className="text-primary-600 font-medium mt-1">
+                                  {job.startTime || '-'}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-gray-500 mb-1">Tanggal Selesai</div>
+                                <div className="font-semibold text-gray-900">
+                                  {job.endDate ? new Date(job.endDate).toLocaleDateString('id-ID', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  }) : 'Belum ditentukan'}
+                                </div>
+                                <div className="text-primary-600 font-medium mt-1">
+                                  {job.endTime || '-'}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {job.scheduledDate ? new Date(job.scheduledDate).toLocaleDateString('id-ID', {
-                              weekday: 'short',
-                              day: 'numeric',
-                              month: 'short'
-                            }) : 'Tanggal belum ditentukan'}
+
+                          {/* ✅ Poster Info with Real-time Progress */}
+                          {['accepted', 'active'].includes(job.status) && job.poster ? (
+                            <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold">
+                                  {job.poster?.name ? job.poster.name.substring(0, 2).toUpperCase() : 'NA'}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="font-semibold text-gray-900">
+                                    {job.poster?.name || 'Pemberi Kerja'}
+                                  </div>
+                                  <div className="text-sm text-gray-600">
+                                    ✓ Terverifikasi
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Progress Bar */}
+                              <div className="mb-3">
+                                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                                  <div
+                                    className={`h-2 rounded-full transition-all ${progress.status === 'finished'
+                                      ? 'bg-blue-500'
+                                      : progress.status === 'not_started'
+                                        ? 'bg-yellow-500'
+                                        : 'bg-green-500'
+                                      }`}
+                                    style={{ width: `${progress.percentage}%` }}
+                                  ></div>
+                                </div>
+                                <div className="text-xs text-gray-600 text-center">
+                                  <span className="font-semibold">{progress.percentage}%</span>
+                                  {' • '}
+                                  <span>{getProgressMessage(progress)}</span>
+                                </div>
+                              </div>
+
+                              {/* Contact Buttons */}
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleChat(job.poster?.phone)}
+                                  className="flex-1 bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 hover:bg-gray-50"
+                                >
+                                  <MessageCircle className="w-3 h-3" />
+                                  Chat WhatsApp
+                                </button>
+                                <button
+                                  onClick={() => handleCall(job.poster?.phone)}
+                                  className="flex-1 bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1 hover:bg-gray-50"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                  Telepon
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <span className="text-lg font-bold text-primary-600">
+                              {formatCurrency(job.budget)}
+                            </span>
+                            <div className="flex gap-2">
+                              {/* ✅ NEW: Button Laporkan - dengan userType 'worker' */}
+                              {['accepted', 'active', 'proses'].includes(job.status) && (
+                                <button
+                                  onClick={() => handleReportTask(job._id, job.title, 'worker')}
+                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold"
+                                >
+                                  Laporkan
+                                </button>
+                              )}
+                              {/* ✅ NEW: Button Selesai */}
+                              {['accepted', 'active', 'proses'].includes(job.status) && (
+                                <button
+                                  onClick={() => handleCompleteTask(job._id, 'worker')}
+                                  disabled={isCompleting === job._id}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                >
+                                  {isCompleting === job._id ? 'Proses...' : 'Selesai'}
+                                </button>
+                              )}
+                              <Link href={`/tugas/${job._id}`}>
+                                <button className="bg-primary-100 text-primary-600 px-4 py-2 rounded-lg text-xs font-semibold">
+                                  Detail →
+                                </button>
+                              </Link>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                          <div className="text-lg font-bold text-primary-600">
-                            {formatCurrency(job.budget)}
-                          </div>
-                          <Link href={`/tugas/${job._id}`}>
-                            <button className="bg-gray-100 text-primary-600 px-4 py-2 rounded-lg text-xs font-semibold">
-                              Detail →
-                            </button>
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="bg-white rounded-xl p-8 text-center text-gray-500">
@@ -878,24 +1209,22 @@ export default function DashboardPage() {
               {/* Tab Section */}
               <div className="mb-6">
                 <div className="grid grid-cols-2 gap-3 mb-5">
-                  <button 
+                  <button
                     onClick={() => setJobTab('permintaan')}
-                    className={`py-3 px-4 border-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
-                      jobTab === 'permintaan' 
-                        ? 'border-primary-500 bg-gradient-to-r from-blue-50 to-blue-100 text-primary-600' 
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}
+                    className={`py-3 px-4 border-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${jobTab === 'permintaan'
+                      ? 'border-primary-500 bg-gradient-to-r from-blue-50 to-blue-100 text-primary-600'
+                      : 'border-gray-200 bg-white text-gray-600'
+                      }`}
                   >
                     <span className="text-lg">🔍</span>
                     Permintaan
                   </button>
-                  <button 
+                  <button
                     onClick={() => setJobTab('publikasi')}
-                    className={`py-3 px-4 border-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
-                      jobTab === 'publikasi' 
-                        ? 'border-primary-500 bg-gradient-to-r from-blue-50 to-blue-100 text-primary-600' 
-                        : 'border-gray-200 bg-white text-gray-600'
-                    }`}
+                    className={`py-3 px-4 border-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${jobTab === 'publikasi'
+                      ? 'border-primary-500 bg-gradient-to-r from-blue-50 to-blue-100 text-primary-600'
+                      : 'border-gray-200 bg-white text-gray-600'
+                      }`}
                   >
                     <span className="text-lg">📢</span>
                     Publikasi
@@ -913,62 +1242,93 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                {/* Available Jobs */}
+                {/* Available Jobs based on Tab */}
                 {jobTab === 'permintaan' ? (
                   offeredJobs.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {offeredJobs.map((job) => (
-                        <div key={job._id} className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-4 border-l-4 border-green-500">
-                          <div className="flex justify-between items-start mb-2">
+                        <div key={job._id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
+                          <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
-                              <div className="text-sm font-semibold text-gray-900 mb-1">{job.title}</div>
-                              <div className="text-xs text-gray-500 flex items-center gap-1">
+                              <h3 className="font-semibold text-lg mb-1">{job.title}</h3>
+                              <p className="text-sm text-gray-600 flex items-center gap-1">
                                 <span>{job.postedBy?.name || 'Anonymous'}</span>
-                                <span className="text-primary-500">✓</span>
-                              </div>
+                                {job.postedBy?.isVerified && (
+                                  <span className="text-primary-500">✓</span>
+                                )}
+                              </p>
                             </div>
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-xs font-semibold">
+                            <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
                               Ditawari
                             </span>
                           </div>
-                          <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                            <div className="flex items-center gap-1">
-                              📍 {job.location || 'Lokasi tidak tersedia'} • 2.3 km
-                            </div>
-                            <div className="flex items-center gap-1">
-                              📅 Besok, 09:00
+
+                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+                            <div className="flex items-center space-x-1">
+                              <MapPin className="w-4 h-4" />
+                              <span>{job.location || 'Lokasi tidak tersedia'}</span>
                             </div>
                           </div>
-                          <div className="flex justify-between items-center pt-3 border-t border-green-200">
-                            <div className="text-lg font-bold text-primary-600">
-                              {formatCurrency(job.budget)}
+
+                          {/* Schedule Info */}
+                          {job.startDate && job.endDate ? (
+                            <div className="bg-blue-50 rounded-lg p-3 mb-4">
+                              <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div>
+                                  <div className="text-gray-500 mb-1">Tanggal Mulai</div>
+                                  <div className="font-semibold text-gray-900">
+                                    {new Date(job.startDate).toLocaleDateString('id-ID', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}
+                                  </div>
+                                  <div className="text-primary-600 font-medium mt-1">
+                                    {job.startTime || '-'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-gray-500 mb-1">Tanggal Selesai</div>
+                                  <div className="font-semibold text-gray-900">
+                                    {new Date(job.endDate).toLocaleDateString('id-ID', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}
+                                  </div>
+                                  <div className="text-primary-600 font-medium mt-1">
+                                    {job.endTime || '-'}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
+                          ) : (
+                            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-center text-sm text-gray-600">
+                              Jadwal akan ditentukan bersama
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <span className="text-lg font-bold text-primary-600">
+                              {formatCurrency(job.budget)}
+                            </span>
                             <div className="flex gap-2">
-                              <Link href={`/pekerjaan/${job._id}?from=dashboard`}>
-                                <button className="bg-white text-gray-600 border-2 border-gray-300 px-3 py-1 rounded-lg text-xs font-semibold">
+                              <Link href={`/pekerjaan/${job._id}`}>
+                                <button className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs font-semibold">
                                   Detail
                                 </button>
                               </Link>
-                              <button 
+                              <button
                                 onClick={() => handleRejectOfferedJob(job._id)}
-                                disabled={processingJobId === job._id || !canAccessFeatures}
-                                className={`bg-white border-2 px-3 py-1 rounded-lg text-xs font-semibold ${
-                                  !canAccessFeatures 
-                                    ? 'border-gray-300 text-gray-400 cursor-not-allowed'
-                                    : 'border-red-600 text-red-600 hover:bg-red-50'
-                                }`}
+                                disabled={processingJobId === job._id}
+                                className="bg-white text-red-600 border border-red-600 px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-50"
                               >
                                 {processingJobId === job._id ? 'Menolak...' : 'Tolak'}
                               </button>
-                              <button 
+                              <button
                                 onClick={() => handleAcceptOfferedJob(job._id)}
-                                disabled={processingJobId === job._id || !canAccessFeatures}
-                                className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                                  !canAccessFeatures
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:shadow-lg'
-                                }`}
-                                title={!canAccessFeatures ? 'Lengkapi profil untuk menerima pekerjaan' : ''}
+                                disabled={processingJobId === job._id}
+                                className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50"
                               >
                                 {processingJobId === job._id ? 'Menerima...' : 'Terima'}
                               </button>
@@ -981,58 +1341,99 @@ export default function DashboardPage() {
                     <div className="bg-white rounded-xl p-8 text-center text-gray-500">
                       <div className="text-4xl mb-3">🎯</div>
                       <div className="text-sm font-medium">Belum ada pekerjaan yang ditawari</div>
+                      <p className="text-xs text-gray-400 mt-1">Pekerjaan yang ditawarkan langsung akan muncul di sini</p>
                     </div>
                   )
                 ) : (
                   allJobs.length > 0 ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {allJobs.map((job) => (
-                        <Link key={job._id} href={`/pekerjaan/${job._id}?from=dashboard`}>
-                          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="flex-1">
-                                <div className="text-sm font-semibold text-gray-900 mb-1">{job.title}</div>
-                                <div className="text-xs text-gray-500 flex items-center gap-1">
-                                  <span>{job.poster?.name || job.postedBy?.name || 'Anonymous'}</span>
-                                  {(job.poster?.isVerified || job.postedBy?.isVerified) && <span className="text-primary-500">✓</span>}
-                                </div>
-                              </div>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">
-                                📝 Publikasi
-                              </span>
+                        <div key={job._id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-lg transition-shadow">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg mb-1">{job.title}</h3>
+                              <p className="text-sm text-gray-600 flex items-center gap-1">
+                                <span>{job.postedBy?.name || 'Anonymous'}</span>
+                                {job.postedBy?.isVerified && (
+                                  <span className="text-primary-500">✓</span>
+                                )}
+                              </p>
                             </div>
-                            <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                              <div className="flex items-center gap-1">
-                                📍 {job.location || 'Lokasi tidak tersedia'}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                📅 {new Date(job.createdAt).toLocaleDateString('id-ID')}
-                              </div>
+                            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                              📝 Publikasi
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+                            <div className="flex items-center space-x-1">
+                              <MapPin className="w-4 h-4" />
+                              <span>{job.location || 'Lokasi tidak tersedia'}</span>
                             </div>
-                            <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                              <div className="text-lg font-bold text-primary-600">
-                                {formatCurrency(job.budget)}
-                              </div>
-                              <button className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:shadow-lg transition-shadow">
-                                Lihat Detail
-                              </button>
+                            <div className="flex items-center space-x-1">
+                              <Calendar className="w-4 h-4" />
+                              <span>{new Date(job.createdAt).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'short'
+                              })}</span>
                             </div>
                           </div>
-                        </Link>
+
+                          {/* Schedule Info */}
+                          {job.startDate && job.endDate ? (
+                            <div className="bg-blue-50 rounded-lg p-3 mb-4">
+                              <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div>
+                                  <div className="text-gray-500 mb-1">Tanggal Mulai</div>
+                                  <div className="font-semibold text-gray-900">
+                                    {new Date(job.startDate).toLocaleDateString('id-ID', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}
+                                  </div>
+                                  <div className="text-primary-600 font-medium mt-1">
+                                    {job.startTime || '-'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-gray-500 mb-1">Tanggal Selesai</div>
+                                  <div className="font-semibold text-gray-900">
+                                    {new Date(job.endDate).toLocaleDateString('id-ID', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}
+                                  </div>
+                                  <div className="text-primary-600 font-medium mt-1">
+                                    {job.endTime || '-'}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-gray-50 rounded-lg p-3 mb-4 text-center text-sm text-gray-600">
+                              Jadwal akan ditentukan bersama
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <span className="text-lg font-bold text-primary-600">
+                              {formatCurrency(job.budget)}
+                            </span>
+                            <Link href={`/pekerjaan/${job._id}`}>
+                              <button className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold">
+                                Lihat Detail
+                              </button>
+                            </Link>
+                          </div>
+                        </div>
                       ))}
-                      
-                      {/* Show more link if there are jobs */}
-                      <div className="text-center pt-2">
-                        <Link href="/pekerjaan" className="text-sm text-primary-600 font-semibold hover:underline">
-                          Lihat Semua Pekerjaan Publikasi →
-                        </Link>
-                      </div>
                     </div>
                   ) : (
                     <div className="bg-white rounded-xl p-8 text-center text-gray-500">
                       <div className="text-4xl mb-3">📝</div>
                       <div className="text-sm font-medium">Belum ada pekerjaan publikasi tersedia</div>
-                      <div className="text-xs text-gray-400 mt-1">Cek lagi nanti untuk pekerjaan baru</div>
+                      <p className="text-xs text-gray-400 mt-1">Pekerjaan baru akan muncul di sini</p>
                     </div>
                   )
                 )}
@@ -1042,13 +1443,23 @@ export default function DashboardPage() {
         </div>
       </main>
       <BottomNav />
-      
+
+      {/* ✅ Modals */}
       <CancelTaskModal
         isOpen={cancelModal.isOpen}
         onClose={() => setCancelModal({ isOpen: false, taskId: '', taskTitle: '' })}
         onConfirm={confirmCancelTask}
         taskTitle={cancelModal.taskTitle}
         isLoading={isCancelling}
+      />
+
+      <ReportTaskModal
+        isOpen={reportModal.isOpen}
+        onClose={() => setReportModal({ isOpen: false, taskId: '', taskTitle: '', userType: 'employer' })}
+        onConfirm={confirmReportTask}
+        taskTitle={reportModal.taskTitle}
+        isLoading={isReporting}
+        userType={reportModal.userType}
       />
     </>
   );

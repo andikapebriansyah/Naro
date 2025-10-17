@@ -7,7 +7,7 @@ import { Header } from '@/components/layouts/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, MapPin, Calendar, Clock, DollarSign, User, Star, CheckCircle, Users, AlertCircle, Edit, Eye, FileText, Download, Search, MessageSquare, Phone, Navigation } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, Calendar, Clock, DollarSign, User, Star, CheckCircle, Users, AlertCircle, Edit, Eye, FileText, Download, Search, MessageSquare, Phone, Navigation, X } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -22,6 +22,10 @@ export default function TaskDetailPage() {
   const [isAccepting, setIsAccepting] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [showAgreementPreview, setShowAgreementPreview] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [showCompletionConfirm, setShowCompletionConfirm] = useState(false);
+  const [isCancellingAssignment, setIsCancellingAssignment] = useState(false);
 
   useEffect(() => {
     fetchTaskDetail();
@@ -59,7 +63,7 @@ export default function TaskDetailPage() {
       const data = await response.json();
       if (data.success) {
         toast.success('Pelamar berhasil diterima!');
-        fetchTaskDetail(); // Refresh data
+        fetchTaskDetail();
       } else {
         toast.error(data.error || 'Gagal menerima pelamar');
       }
@@ -84,7 +88,7 @@ export default function TaskDetailPage() {
       const data = await response.json();
       if (data.success) {
         toast.success('Pelamar berhasil ditolak');
-        fetchTaskDetail(); // Refresh data
+        fetchTaskDetail();
       } else {
         toast.error(data.error || 'Gagal menolak pelamar');
       }
@@ -92,6 +96,86 @@ export default function TaskDetailPage() {
       toast.error('Terjadi kesalahan saat menolak pelamar');
     } finally {
       setIsRejecting(false);
+    }
+  };
+
+  const handleCancelAssignment = async () => {
+    if (!confirm('Apakah Anda yakin ingin membatalkan penugasan ke pekerja ini? Anda dapat memilih pekerja lain.')) {
+      return;
+    }
+
+    setIsCancellingAssignment(true);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedTo: null,
+          status: 'open'
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Penugasan berhasil dibatalkan');
+        fetchTaskDetail();
+      } else {
+        toast.error('Gagal membatalkan penugasan');
+      }
+    } catch (error) {
+      toast.error('Terjadi kesalahan');
+    } finally {
+      setIsCancellingAssignment(false);
+    }
+  };
+
+  const handleCompleteTask = async (completedBy: 'worker' | 'employer', forceComplete = false) => {
+    setIsCompleting(true);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ completedBy, forceComplete }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message);
+        fetchTaskDetail();
+        setShowCompletionConfirm(false);
+      } else {
+        toast.error(data.error || 'Gagal menyelesaikan tugas');
+      }
+    } catch (error) {
+      toast.error('Terjadi kesalahan saat menyelesaikan tugas');
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  const handleApproveCompletion = async (approve: boolean) => {
+    setIsApproving(true);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/approve-completion`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ approve }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message);
+        fetchTaskDetail();
+      } else {
+        toast.error(data.error || 'Gagal memproses persetujuan');
+      }
+    } catch (error) {
+      toast.error('Terjadi kesalahan saat memproses persetujuan');
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -178,7 +262,7 @@ PASAL 2 - WAKTU PELAKSANAAN
 1. Tanggal Mulai: ${formatDate(task.startDate || task.scheduledDate)}
 2. Waktu Mulai: ${task.startTime || task.scheduledTime} WIB
 3. Tanggal Selesai: ${task.endDate ? formatDate(task.endDate) : 'Sesuai durasi pekerjaan'}
-4. Waktu Selesai: ${task.endTime || 'Sesuai kesepakatan'} WIB
+4. Waktu Selesai: ${task.endTime || '17:00'} WIB
 5. Estimasi Durasi: ${task.estimatedDuration || 'Sesuai kebutuhan'}
 
 PASAL 3 - KOMPENSASI
@@ -284,7 +368,7 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
                     </span>
                     {task.searchMethod && (
                       <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full">
-                        {task.searchMethod === 'publication' ? '📢 Publikasi' : '🔍 Cari Pekerja'}
+                        {task.searchMethod === 'publication' ? 'Publikasi' : 'Cari Pekerja'}
                       </span>
                     )}
                   </div>
@@ -514,7 +598,11 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
                     </div>
                   </div>
                   <div className="flex flex-col space-y-2">
-                    <div className="text-sm text-green-700 font-medium text-center">Ditugaskan</div>
+                    <div className={`text-sm font-medium text-center px-3 py-1 rounded ${
+                      task.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                    }`}>
+                      {task.status === 'pending' ? 'Menunggu Konfirmasi' : 'Ditugaskan'}
+                    </div>
                     {isOwner && (
                       <div className="flex space-x-2">
                         <Button size="sm" variant="outline" className="flex items-center space-x-1">
@@ -528,6 +616,62 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
                       </div>
                     )}
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Status for Worker - Waiting for Confirmation */}
+          {!isOwner && task.assignedTo && task.assignedTo._id === session?.user?.id && task.status === 'pending' && (
+            <Card className="mb-6 border-l-4 border-l-blue-500">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <AlertCircle className="h-5 w-5 text-blue-600" />
+                  <span>Penawaran Tugas Menunggu Konfirmasi Anda</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-700 mb-3">
+                      <span className="font-semibold">{task.posterId?.name}</span> telah memilih Anda untuk mengerjakan tugas ini berdasarkan rekomendasi sistem AI.
+                    </p>
+                    <p className="text-sm text-blue-700 mb-3">
+                      Anda sekarang menunggu konfirmasi dari pemberi kerja untuk memulai pekerjaan. Pemberi kerja akan:
+                    </p>
+                    <ul className="text-sm text-blue-700 space-y-2 ml-4">
+                      <li>✓ <span className="font-medium">Menerima penawaran</span> - Pekerjaan akan dimulai sesuai jadwal</li>
+                      <li>✗ <span className="font-medium">Mencari pekerja lain</span> - Penugasan dibatalkan</li>
+                    </ul>
+                  </div>
+
+                  <div className="border-l-4 border-l-amber-500 bg-amber-50 p-4 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <Clock className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-900 mb-1">Waktu Tunggu</p>
+                        <p className="text-sm text-amber-700">
+                          Pemberi kerja biasanya merespons dalam waktu 24 jam. Anda akan menerima notifikasi ketika ada keputusan.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-green-900 mb-2">Detail Tugas</p>
+                    <div className="text-sm text-green-700 space-y-2">
+                      <p><span className="font-medium">Jadwal:</span> {formatDate(task.startDate || task.scheduledDate)} - {task.startTime || task.scheduledTime} WIB</p>
+                      <p><span className="font-medium">Budget:</span> {formatCurrency(task.budget)}</p>
+                      <p><span className="font-medium">Lokasi:</span> {task.location}</p>
+                    </div>
+                  </div>
+
+                  <Link href={`/tugas/${taskId}`}>
+                    <Button variant="outline" className="w-full">
+                      <Eye className="h-4 w-4 mr-2" />
+                      Lihat Detail Tugas Lengkap
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -564,7 +708,6 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
                         </div>
                       </div>
                       <div className="flex flex-col space-y-2">
-                        {/* Only show status if not pending */}
                         {applicant.status !== 'pending' && (
                           <div className={`text-xs px-2 py-1 rounded text-center ${
                             applicant.status === 'accepted' ? 'bg-green-100 text-green-700' :
@@ -574,14 +717,12 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
                           </div>
                         )}
                         <div className="flex space-x-1">
-                          {/* Detail User Button */}
                           <Link href={`/pekerja/${applicant.user?._id || applicant.userId}`}>
                             <Button size="sm" variant="outline" className="text-xs px-2 py-1 h-7">
                               <User className="h-3 w-3 mr-1" />
                               Detail
                             </Button>
                           </Link>
-                          {/* Accept/Reject buttons for pending applicants */}
                           {applicant.status === 'pending' && isOwner && !task.assignedTo && (
                             <>
                               <Button 
@@ -612,6 +753,141 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
             </Card>
           )}
 
+          {/* Status for Find_Worker Method - Waiting for Worker Confirmation */}
+          {isOwner && task.searchMethod === 'find_worker' && task.assignedTo && task.status === 'pending' && (
+            <Card className="mb-6 border-l-4 border-l-amber-500">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Clock className="h-5 w-5 text-amber-600" />
+                  <span>Menunggu Konfirmasi Pekerja</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Main Status Explanation */}
+                  <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                    <p className="text-sm text-amber-700 mb-3">
+                      Tugas Anda telah ditawarkan kepada <span className="font-semibold">{task.assignedTo.name}</span> melalui sistem rekomendasi AI berdasarkan keahlian, pengalaman, dan lokasi mereka yang sesuai dengan kebutuhan tugas Anda.
+                    </p>
+                    <p className="text-sm text-amber-700">
+                      <span className="font-medium">Status Saat Ini:</span> Menunggu pekerja merespons penawaran tugas ini.
+                    </p>
+                  </div>
+
+                  {/* What Happens Next */}
+                  <div className="border-l-4 border-l-purple-500 bg-purple-50 p-4 rounded-lg">
+                    <p className="text-sm font-medium text-purple-900 mb-3">Apa Yang Akan Terjadi Selanjutnya:</p>
+                    <div className="space-y-3">
+                      <div className="flex items-start space-x-3">
+                        <div className="flex items-center justify-center h-6 w-6 rounded-full bg-purple-200 text-purple-700 text-xs font-bold flex-shrink-0">1</div>
+                        <div>
+                          <p className="text-sm font-medium text-purple-900">Pekerja Menerima Notifikasi</p>
+                          <p className="text-xs text-purple-700">Pekerja akan menerima pemberitahuan tentang penawaran tugas ini di dashboard mereka</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <div className="flex items-center justify-center h-6 w-6 rounded-full bg-purple-200 text-purple-700 text-xs font-bold flex-shrink-0">2</div>
+                        <div>
+                          <p className="text-sm font-medium text-purple-900">Pekerja Membuat Keputusan</p>
+                          <p className="text-xs text-purple-700">Pekerja dapat memilih untuk menerima atau menolak penawaran ini dalam waktu 24 jam</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start space-x-3">
+                        <div className="flex items-center justify-center h-6 w-6 rounded-full bg-purple-200 text-purple-700 text-xs font-bold flex-shrink-0">3</div>
+                        <div>
+                          <p className="text-sm font-medium text-purple-900">Pekerjaan Dimulai</p>
+                          <p className="text-xs text-purple-700">Jika diterima, pekerjaan akan dimulai sesuai jadwal yang ditentukan: <span className="font-semibold">{formatDate(task.startDate || task.scheduledDate)} - {task.startTime || task.scheduledTime} WIB</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Worker Information */}
+                  <div className="border-l-4 border-l-blue-500 bg-blue-50 p-4 rounded-lg">
+                    <p className="text-sm font-medium text-blue-900 mb-3">Profil Pekerja Terpilih</p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm text-blue-700">Nama:</span>
+                        <span className="text-sm font-semibold text-blue-900">{task.assignedTo.name}</span>
+                      </div>
+                      {task.assignedTo.rating && (
+                        <div className="flex justify-between items-start">
+                          <span className="text-sm text-blue-700">Rating:</span>
+                          <span className="text-sm font-semibold text-blue-900">{task.assignedTo.rating} ⭐</span>
+                        </div>
+                      )}
+                      {task.assignedTo.isVerified && (
+                        <div className="flex justify-between items-start">
+                          <span className="text-sm text-blue-700">Status:</span>
+                          <span className="text-sm font-semibold text-blue-900 flex items-center space-x-1">
+                            <CheckCircle className="h-4 w-4 text-blue-600" />
+                            <span>Terverifikasi</span>
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm text-blue-700">Email:</span>
+                        <span className="text-sm text-blue-900 break-all">{task.assignedTo.email}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Timeline Information */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start space-x-2">
+                    <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-yellow-700">
+                      <p className="font-medium mb-1">Waktu Tunggu Respons</p>
+                      <p className="mb-2">
+                        Pekerja memiliki waktu hingga <span className="font-semibold">24 jam</span> untuk merespons penawaran tugas ini. Anda akan menerima notifikasi ketika mereka membuat keputusan.
+                      </p>
+                      <p className="text-xs">
+                        Jika pekerja tidak merespons dalam 24 jam, Anda dapat membatalkan penugasan dan memilih pekerja lain dari hasil rekomendasi.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* What If Options */}
+                  <div className="border-l-4 border-l-green-500 bg-green-50 p-4 rounded-lg">
+                    <p className="text-sm font-medium text-green-900 mb-3">Skenario Kemungkinan:</p>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-sm font-medium text-green-700">✓ Jika Diterima:</p>
+                        <p className="text-xs text-green-700">Pekerjaan akan secara otomatis dimulai pada jadwal yang ditentukan. Pekerja harus hadir tepat waktu di lokasi yang ditentukan.</p>
+                      </div>
+                      <div className="pt-2 border-t border-green-200">
+                        <p className="text-sm font-medium text-green-700">✗ Jika Ditolak:</p>
+                        <p className="text-xs text-green-700">Penugasan akan dibatalkan. Anda dapat memilih pekerja lain atau mencari melalui sistem rekomendasi AI kembali.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Link href={`/pekerja/${task.assignedTo._id}`} className="flex-1">
+                      <Button variant="outline" className="w-full">
+                        <User className="h-4 w-4 mr-2" />
+                        Lihat Profil Lengkap Pekerja
+                      </Button>
+                    </Link>
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 border-red-300 text-red-600 hover:bg-red-50"
+                      onClick={handleCancelAssignment}
+                      disabled={isCancellingAssignment}
+                    >
+                      {isCancellingAssignment ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <X className="h-4 w-4 mr-2" />
+                      )}
+                      Batal Penugasan
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Status Actions - Enhanced with conditional logic */}
           {isOwner && (
             <Card className="mb-6">
@@ -619,26 +895,26 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
                 <CardTitle>Aksi</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3 flex-col">
                   {task.status === 'draft' && (
                     <>
                       {task.searchMethod === 'find_worker' ? (
                         <Link href={`/tugas/${taskId}/cari-pekerja`}>
-                          <Button className="flex items-center space-x-2">
+                          <Button className="flex items-center space-x-2 w-full">
                             <Search className="h-4 w-4" />
-                            <span>Cari Pekerja</span>
+                            <span>Cari Pekerja dengan AI</span>
                           </Button>
                         </Link>
                       ) : (
                         <Link href={`/tugas/${taskId}/perjanjian`}>
-                          <Button className="flex items-center space-x-2">
+                          <Button className="flex items-center space-x-2 w-full">
                             <FileText className="h-4 w-4" />
                             <span>Lanjutkan ke Publikasi</span>
                           </Button>
                         </Link>
                       )}
                       <Link href={`/tugas/${taskId}/edit`}>
-                        <Button variant="outline" className="flex items-center space-x-2">
+                        <Button variant="outline" className="flex items-center space-x-2 w-full">
                           <Edit className="h-4 w-4" />
                           <span>Edit Tugas</span>
                         </Button>
@@ -646,19 +922,19 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
                     </>
                   )}
                   
-                  {/* For find_worker method - show search workers action */}
+                  {/* For find_worker method - show search workers action when no one assigned yet */}
                   {task.status === 'open' && !task.assignedTo && task.searchMethod === 'find_worker' && (
                     <Link href={`/tugas/${taskId}/cari-pekerja`}>
-                      <Button className="flex items-center space-x-2">
+                      <Button className="flex items-center space-x-2 w-full">
                         <Search className="h-4 w-4" />
-                        <span>Cari Pekerja</span>
+                        <span>Cari Pekerja Lagi</span>
                       </Button>
                     </Link>
                   )}
 
-                  {/* For publication method - don't show search action, just manage applicants */}
+                  {/* For publication method - show publication status info */}
                   {task.status === 'open' && !task.assignedTo && task.searchMethod === 'publication' && (
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 w-full">
                       <div className="flex items-center space-x-2 mb-2">
                         <AlertCircle className="h-5 w-5 text-blue-600" />
                         <span className="font-medium text-blue-900">Tugas Dipublikasikan</span>
@@ -674,20 +950,8 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
                     </div>
                   )}
 
-                  {task.status === 'pending' && task.assignedTo && (
-                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Clock className="h-5 w-5 text-yellow-600" />
-                        <span className="font-medium text-yellow-900">Menunggu Konfirmasi Pekerja</span>
-                      </div>
-                      <p className="text-sm text-yellow-700">
-                        Pekerja telah ditugaskan. Menunggu konfirmasi dari pekerja untuk memulai pekerjaan sesuai jadwal yang ditentukan.
-                      </p>
-                    </div>
-                  )}
-
                   {task.status === 'accepted' && task.assignedTo && (
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 w-full">
                       <div className="flex items-center space-x-2 mb-2">
                         <CheckCircle className="h-5 w-5 text-blue-600" />
                         <span className="font-medium text-blue-900">Siap Dimulai</span>
@@ -698,22 +962,84 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
                     </div>
                   )}
 
-                  {task.status === 'active' && (
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  {['active', 'accepted'].includes(task.status) && (
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200 w-full">
                       <div className="flex items-center space-x-2 mb-2">
                         <CheckCircle className="h-5 w-5 text-green-600" />
                         <span className="font-medium text-green-900">Pekerjaan Sedang Berlangsung</span>
                       </div>
-                      <p className="text-sm text-green-700">
+                      <p className="text-sm text-green-700 mb-3">
                         Pekerja sedang mengerjakan tugas ini. Pekerjaan akan selesai sesuai estimasi waktu yang ditentukan.
                       </p>
+                      <div className="flex gap-3">
+                        {isOwner && (
+                          <Button 
+                            onClick={() => setShowCompletionConfirm(true)}
+                            variant="outline"
+                            className="border-green-600 text-green-600 hover:bg-green-50"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Selesaikan Tugas
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )}
 
-                  {/* Always show edit if task can be edited */}
+                  {task.status === 'completed_worker' && (
+                    <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 w-full">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Clock className="h-5 w-5 text-amber-600" />
+                        <span className="font-medium text-amber-900">Menunggu Persetujuan Penyelesaian</span>
+                      </div>
+                      <p className="text-sm text-amber-700 mb-3">
+                        Pekerja telah menandai tugas sebagai selesai. Silakan tinjau hasil pekerjaan dan berikan persetujuan.
+                      </p>
+                      {isOwner && (
+                        <div className="flex gap-3">
+                          <Button 
+                            onClick={() => handleApproveCompletion(true)}
+                            disabled={isApproving}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            {isApproving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                            Setujui & Bayar
+                          </Button>
+                          <Button 
+                            onClick={() => handleApproveCompletion(false)}
+                            disabled={isApproving}
+                            variant="outline"
+                            className="border-red-600 text-red-600 hover:bg-red-50"
+                          >
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                            Tolak
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {task.status === 'completed' && (
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200 w-full">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <span className="font-medium text-green-900">Tugas Selesai</span>
+                      </div>
+                      <p className="text-sm text-green-700">
+                        Tugas telah diselesaikan dengan sukses. Pembayaran telah diproses.
+                      </p>
+                      {task.completedAt && (
+                        <div className="text-xs text-green-600 mt-2">
+                          Selesai pada: {new Date(task.completedAt).toLocaleDateString('id-ID')} - {new Date(task.completedAt).toLocaleTimeString('id-ID')}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Edit button for draft/open/pending status */}
                   {['draft', 'open', 'pending'].includes(task.status) && !task.assignedTo && (
                     <Link href={`/tugas/${taskId}/edit`}>
-                      <Button variant="outline" className="flex items-center space-x-2">
+                      <Button variant="outline" className="flex items-center space-x-2 w-full">
                         <Edit className="h-4 w-4" />
                         <span>Edit Tugas</span>
                       </Button>
@@ -740,6 +1066,53 @@ ${task.posterId?.name || '[Nama Pemberi Kerja]'}                  ${task.assigne
             </Card>
           )}
         </div>
+
+        {/* Completion Confirmation Modal */}
+        {showCompletionConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <AlertCircle className="h-8 w-8 text-amber-600" />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Konfirmasi Penyelesaian</h3>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-sm text-gray-700 mb-3">
+                  Anda akan menyelesaikan tugas ini secara sepihak. Pekerja akan langsung menerima pembayaran sebesar:
+                </p>
+                <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                  <div className="text-xl font-bold text-green-700 text-center">
+                    {formatCurrency(task.budget)}
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600 mt-2">
+                  * Tindakan ini tidak dapat dibatalkan. Pastikan Anda yakin dengan keputusan ini.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowCompletionConfirm(false)}
+                  disabled={isCompleting}
+                >
+                  Batal
+                </Button>
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  onClick={() => handleCompleteTask('employer', true)}
+                  disabled={isCompleting}
+                >
+                  {isCompleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                  Ya, Selesaikan
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );

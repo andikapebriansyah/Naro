@@ -71,16 +71,21 @@ export async function GET(request: NextRequest) {
       description: task.description,
       category: task.category,
       location: task.location,
+      // ✅ FIXED: Add complete schedule information
       scheduledDate: task.scheduledDate,
       scheduledTime: task.scheduledTime,
+      startDate: task.startDate,
+      startTime: task.startTime,
+      endDate: task.endDate,
+      endTime: task.endTime,
       estimatedDuration: task.estimatedDuration,
       budget: task.budget,
       pricingType: task.pricingType,
       searchMethod: task.searchMethod,
       status: task.status,
       photos: task.photos || [],
-      poster: task.posterId,
-      assignedTo: task.assignedTo, // Include assignedTo field
+      postedBy: task.posterId, // ✅ Changed from 'poster' to 'postedBy' for consistency
+      assignedTo: task.assignedTo,
       createdAt: task.createdAt,
       applicants: task.applicants?.length || 0,
     }));

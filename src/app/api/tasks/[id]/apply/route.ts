@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import Task from '@/lib/models/Task';
+import { createNotification } from '@/lib/notifications';
 
 export async function POST(
   request: NextRequest,
@@ -71,17 +72,13 @@ export async function POST(
       message: message.trim()
     });
 
-    // Update task status to pending when first application is received
-    const oldStatus = task.status;
-    if (task.status === 'open') {
-      task.status = 'pending';
-    }
-
+    // PERBAIKAN: Task TETAP 'open' meskipun ada yang apply
+    // Status baru berubah ke 'pending' setelah pemberi kerja menerima salah satu pelamar
+    
     console.log('=== APPLY API SAVE ===');
     console.log('Task ID:', task._id);
     console.log('User ID:', session.user.id);
-    console.log('Old status:', oldStatus);
-    console.log('New status:', task.status);
+    console.log('Status remains:', task.status); // Tetap 'open'
     console.log('Total applicants after add:', task.applicants.length);
     console.log('Applicants:', task.applicants.map((app: any) => ({
       userId: app.userId,
@@ -91,7 +88,17 @@ export async function POST(
 
     await task.save();
 
-    console.log('Task saved successfully');
+    console.log('Task saved successfully - status remains open');
+
+    // ✅ Notify employer about new applicant
+    await createNotification({
+      userId: task.posterId.toString(),
+      title: 'Lamaran Baru Masuk! 👤',
+      message: `Ada pelamar baru untuk pekerjaan "${task.title}". Periksa profil dan terima pelamar yang sesuai.`,
+      type: 'new_applicant',
+      relatedId: task._id.toString(),
+      relatedModel: 'Task',
+    });
 
     return NextResponse.json({
       success: true,

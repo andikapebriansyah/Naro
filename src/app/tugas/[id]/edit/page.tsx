@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Upload } from 'lucide-react';
+import { Upload, Target, MapPin, Calendar, Clock, DollarSign, Briefcase, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProfileGuard } from '@/components/guards/ProfileGuard';
 import { WorkerRecommendation } from '@/components/features/tasks/WorkerRecommendation';
@@ -33,6 +33,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [task, setTask] = useState<any>(null);
+  const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -119,6 +120,11 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
     setPhotoPreviews(photoPreviews.filter((_, i) => i !== index));
   };
 
+  const handleWorkerSelect = (worker: any) => {
+    setSelectedWorker(worker);
+    toast.success(`🤖 ${worker.name} dipilih! Akan langsung ditugaskan setelah tugas diupdate (skip klausul karena editing).`);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -158,13 +164,33 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
       if (result.success) {
         toast.success('Tugas berhasil diperbarui!');
         
-        // Arahkan berdasarkan metode pencarian yang dipilih
-        if (formData.searchMethod === 'find_worker') {
-          // Jika pilih "Cari Pekerja", arahkan ke halaman cari pekerja
+        // Handle different flows based on selection (EDIT MODE)
+        if (selectedWorker) {
+          // EDIT MODE: Jika pekerja sudah dipilih dari rekomendasi AI, langsung assign
+          // Status tetap 'open' dengan assignedTo, pekerja akan dapat notifikasi penawaran
+          const updateResponse = await fetch(`/api/tasks/${params.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assignedTo: selectedWorker._id,
+              status: 'open', // Tetap open, biarkan pekerja terima/tolak offer
+              searchMethod: 'find_worker', // Pastikan method sesuai
+              isEditMode: true // Flag untuk membedakan dari create mode
+            }),
+          });
+
+          if (updateResponse.ok) {
+            toast.success(`🤖 Pekerja AI ${selectedWorker.name} berhasil ditugaskan! (Skip klausul karena editing)`);
+            router.push('/riwayat?mode=employer');
+          } else {
+            toast.error('Gagal menugaskan pekerja');
+          }
+        } else if (formData.searchMethod === 'find_worker') {
+          // Jika pilih "Cari Pekerja" tanpa rekomendasi AI, ke halaman cari pekerja
           router.push(`/tugas/${params.id}/cari-pekerja`);
         } else {
-          // Jika pilih "Publikasikan", ke surat perjanjian
-          router.push(`/tugas/${params.id}/perjanjian`);
+          // Jika pilih "Publikasikan", langsung ke riwayat (karena klausul sudah ada)
+          router.push('/riwayat?mode=employer');
         }
       } else {
         toast.error(result.error || 'Gagal menyimpan perubahan');
@@ -571,10 +597,10 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                       }`}
                     >
                       <div className="text-center">
-                        <div className="text-3xl mb-2">🔎</div>
-                        <h4 className="font-semibold mb-1">Cari Pekerja</h4>
+                        <div className="text-3xl mb-2">🤖</div>
+                        <h4 className="font-semibold mb-1">Rekomendasi AI</h4>
                         <p className="text-xs text-gray-600">
-                          Pilih pekerja langsung dari daftar
+                          Dapatkan rekomendasi pekerja terbaik
                         </p>
                       </div>
                     </div>
@@ -584,32 +610,47 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                     <span className="text-blue-500">💡</span>
                     <div className="text-sm text-blue-700">
                       <p className="font-medium mb-1">
-                        {formData.searchMethod === 'publication' ? 'Publikasikan' : 'Cari Pekerja'}:
+                        {formData.searchMethod === 'publication' ? 'Publikasikan' : 'Rekomendasi AI'}:
                       </p>
                       <p>
                         {formData.searchMethod === 'publication'
-                          ? 'Tugas akan ditampilkan dan pekerja bisa melamar. Anda bisa memilih dari pelamar yang tersedia.'
-                          : 'Anda bisa memilih pekerja langsung dari daftar pekerja yang tersedia berdasarkan rating dan pengalaman.'}
+                          ? 'Tugas akan tetap dipublikasikan dan pekerja bisa melamar.'
+                          : 'Sistem AI akan menganalisis dan merekomendasikan pekerja terbaik. Karena ini mode edit, pekerja yang dipilih akan langsung ditugaskan (skip klausul).'}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* AI Worker Recommendation - Only show when find_worker is selected */}
-                {formData.searchMethod === 'find_worker' && formData.title && formData.description && formData.category && (
-                  <WorkerRecommendation
-                    jobData={{
-                      title: formData.title,
-                      description: formData.description,
-                      category: formData.category,
-                      location: formData.location,
-                      locationCoordinates: formData.locationCoordinates
-                    }}
-                    onWorkerSelect={(worker) => {
-                      // Redirect to cari-pekerja page with selected worker
-                      router.push(`/tugas/${params.id}/cari-pekerja?workerId=${worker._id}`);
-                    }}
-                  />
+                {/* AI Recommendation Component - EDIT MODE */}
+                {formData.searchMethod === 'find_worker' && (
+                  <div>
+                    <WorkerRecommendation
+                      jobData={formData}
+                      onWorkerSelect={handleWorkerSelect}
+                    />
+
+                    {selectedWorker && (
+                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4 mt-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-blue-600">🤖</span>
+                          <span className="font-medium text-blue-900">
+                            Pekerja AI Terpilih: {selectedWorker.name}
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800 border border-yellow-200">
+                            🚀 EDIT MODE
+                          </span>
+                        </div>
+                        <p className="text-sm text-blue-700 mb-2">
+                          Tugas akan langsung ditugaskan ke {selectedWorker.name} setelah diupdate.
+                          <strong> Klausul akan dilewati karena tugas sudah dipublikasi sebelumnya.</strong>
+                        </p>
+                        <div className="mt-2 flex items-center space-x-1 text-xs text-blue-600">
+                          <span>⚡</span>
+                          <span>Mode Edit: Langsung ke status pending tanpa klausul</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 <div className="flex space-x-4">
@@ -622,7 +663,14 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                     Batal
                   </Button>
                   <Button type="submit" className="flex-1" disabled={isSaving}>
-                    {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                    {isSaving 
+                      ? 'Menyimpan...' 
+                      : selectedWorker
+                        ? `🤖 Update & Tugaskan ke ${selectedWorker.name} →`
+                        : formData.searchMethod === 'find_worker' 
+                          ? 'Update & Cari Pekerja →' 
+                          : 'Simpan Perubahan →'
+                    }
                   </Button>
                 </div>
               </form>

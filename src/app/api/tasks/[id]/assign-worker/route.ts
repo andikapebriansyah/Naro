@@ -51,24 +51,31 @@ export async function POST(
       );
     }
 
-    // Check if task is still in draft status
-    if (task.status !== 'draft') {
+    // Check if task is still in valid status (draft or open)
+    if (!['draft', 'open'].includes(task.status)) {
       return NextResponse.json(
         { success: false, error: 'Tugas sudah memiliki pekerja yang ditugaskan' },
         { status: 400 }
       );
     }
 
-    // Assign worker and set status to waiting for worker confirmation
+    // Assign worker and set status to pending (waiting for worker confirmation)
     task.assignedTo = workerId;
-    task.status = 'menunggu'; // Menunggu konfirmasi dari pekerja
+    task.status = 'pending'; // ✅ FIX: Gunakan 'pending' bukan 'menunggu'
     task.searchMethod = 'find_worker'; // Ensure it's marked as direct assignment
 
     await task.save();
 
+    console.log(`✅ Task ${taskId} assigned to worker ${workerId}, status changed to 'pending'`);
+
     return NextResponse.json({
       success: true,
-      message: 'Pekerja berhasil ditugaskan. Menunggu konfirmasi dari pekerja.'
+      message: 'Pekerja berhasil ditugaskan. Menunggu konfirmasi dari pekerja.',
+      data: {
+        taskId: task._id,
+        status: task.status,
+        assignedTo: task.assignedTo
+      }
     });
 
   } catch (error) {

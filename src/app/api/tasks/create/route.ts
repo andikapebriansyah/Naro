@@ -37,7 +37,17 @@ export async function POST(req: NextRequest) {
     const searchMethod = formData.get('searchMethod') as string;
 
     // Validate required fields
-    if (!title || !description || !category || !location || !startDate || !startTime || !endDate || !endTime || !budget) {
+    if (
+      !title ||
+      !description ||
+      !category ||
+      !location ||
+      !startDate ||
+      !startTime ||
+      !endDate ||
+      !endTime ||
+      !budget
+    ) {
       return NextResponse.json(
         { success: false, error: 'Field wajib tidak lengkap' },
         { status: 400 }
@@ -46,44 +56,75 @@ export async function POST(req: NextRequest) {
 
     // Handle photo uploads (if any)
     const photos: string[] = [];
+    const failedPhotos: string[] = [];
     const photoFiles = formData.getAll('photos') as File[];
-    
-    console.log('Photo files received:', photoFiles.length);
-    console.log('Photo files details:', photoFiles.map(f => ({ name: f.name, size: f.size, type: f.type })));
-    
+
+    console.log(`📸 Photo upload started: ${photoFiles.length} files`);
+
     if (photoFiles && photoFiles.length > 0) {
-      for (const file of photoFiles) {
-        if (file && file.size > 0) {
-          try {
-            console.log(`Uploading photo: ${file.name}`);
-            const photoUrl = await uploadToCloudinary(file, 'naro-app/tasks');
-            console.log(`Photo uploaded successfully: ${photoUrl}`);
-            photos.push(photoUrl);
-          } catch (error) {
-            console.error('Error uploading photo:', error);
-            // Continue with other photos even if one fails
-          }
+      for (let i = 0; i < photoFiles.length; i++) {
+        const file = photoFiles[i];
+
+        if (!file || file.size === 0) {
+          console.warn(`⚠️  Skipping empty file at index ${i}`);
+          continue;
+        }
+
+        // Validasi ukuran file
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+          console.warn(
+            `⚠️  File ${file.name} terlalu besar (${file.size} bytes), skipping`
+          );
+          failedPhotos.push(file.name);
+          continue;
+        }
+
+        try {
+          console.log(`📤 Uploading photo ${i + 1}/${photoFiles.length}: ${file.name} (${file.size} bytes)`);
+          
+          const photoUrl = await uploadToCloudinary(file, 'naro-app/tasks');
+          console.log(`✅ Photo ${i + 1} uploaded: ${photoUrl}`);
+          photos.push(photoUrl);
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          console.error(`❌ Failed to upload photo ${i + 1} (${file.name}): ${errorMsg}`);
+          failedPhotos.push(file.name);
+          // Continue with other photos
         }
       }
     }
-    
-    console.log('Final photos array:', photos);
+
+    console.log(`📊 Upload summary - Success: ${photos.length}, Failed: ${failedPhotos.length}`);
+
+    // Jika semua foto gagal upload, return error
+    if (photoFiles.length > 0 && photos.length === 0 && failedPhotos.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Gagal upload semua foto. Details: ${failedPhotos.join(', ')}`,
+        },
+        { status: 400 }
+      );
+    }
 
     // Create task
-    const initialStatus = 'open'; // Semua task langsung open agar muncul di /pekerjaan
-    
+    const initialStatus = 'open';
+
     const task = await Task.create({
       title,
       description,
       category,
       location,
-      locationCoordinates: locationCoordinates ? JSON.parse(locationCoordinates) : null,
+      locationCoordinates: locationCoordinates
+        ? JSON.parse(locationCoordinates)
+        : null,
       startDate: new Date(startDate),
       startTime,
       endDate: new Date(endDate),
       endTime,
-      scheduledDate: new Date(startDate), // Keep for backward compatibility
-      scheduledTime: startTime, // Keep for backward compatibility
+      scheduledDate: new Date(startDate),
+      scheduledTime: startTime,
       budget: parseFloat(budget),
       pricingType: pricingType || 'fixed',
       searchMethod: searchMethod || 'publication',
@@ -96,11 +137,17 @@ export async function POST(req: NextRequest) {
       success: true,
       message: 'Tugas berhasil dibuat',
       data: task,
+      uploadSummary: {
+        successCount: photos.length,
+        failedCount: failedPhotos.length,
+        failedFiles: failedPhotos,
+      },
     });
   } catch (error) {
-    console.error('Error creating task:', error);
+    console.error('❌ Error creating task:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Terjadi kesalahan server';
     return NextResponse.json(
-      { success: false, error: 'Terjadi kesalahan server' },
+      { success: false, error: errorMsg },
       { status: 500 }
     );
   }

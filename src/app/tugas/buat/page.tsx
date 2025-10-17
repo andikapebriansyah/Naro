@@ -42,7 +42,6 @@ export default function CreateTaskPage() {
     endDate: '',
     endTime: '',
     budget: '',
-    pricingType: 'fixed' as 'fixed' | 'hourly' | 'daily' | 'weekly' | 'monthly',
     searchMethod: 'publication' as 'publication' | 'find_worker',
   });
   const [photos, setPhotos] = useState<File[]>([]);
@@ -50,7 +49,148 @@ export default function CreateTaskPage() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [tempCoordinates, setTempCoordinates] = useState({ lat: 0, lng: 0 });
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
-  const [showRecommendations, setShowRecommendations] = useState(false);
+
+  // Fungsi untuk mendapatkan minimum date (hari ini) dengan timezone lokal
+  const getMinDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Fungsi untuk mendapatkan minimum time (3 jam dari sekarang)
+  const getMinTime = (selectedDate: string) => {
+    if (!selectedDate) return '00:00';
+    
+    const now = new Date();
+    const today = getMinDate();
+    
+    // Jika tanggal yang dipilih adalah hari ini
+    if (selectedDate === today) {
+      const minTime = new Date(now.getTime() + 3 * 60 * 60 * 1000); // 3 jam dari sekarang
+      const hours = minTime.getHours().toString().padStart(2, '0');
+      const minutes = minTime.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+    
+    return '00:00'; // Untuk hari lain, bisa mulai kapan saja
+  };
+
+  // Validasi waktu real-time
+  const validateTime = (startDate: string, startTime: string, endDate: string, endTime: string) => {
+    if (!startDate || !startTime || !endDate || !endTime) return true;
+    
+    const start = new Date(`${startDate}T${startTime}`);
+    const end = new Date(`${endDate}T${endTime}`);
+    const now = new Date();
+    const minStartTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+    const today = getMinDate();
+    
+    // Cek apakah waktu mulai minimal 3 jam dari sekarang (hanya untuk hari ini)
+    if (startDate === today && start < minStartTime) {
+      toast.error('Waktu mulai harus minimal 3 jam dari sekarang');
+      return false;
+    }
+    
+    // Cek apakah waktu akhir setelah waktu mulai
+    if (end <= start) {
+      toast.error('Waktu berakhir harus setelah waktu mulai');
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Handler untuk perubahan startDate
+  const handleStartDateChange = (newDate: string) => {
+    const today = getMinDate();
+    
+    // Prevent selecting past dates
+    if (newDate < today) {
+      toast.error('Tidak bisa memilih tanggal yang sudah lewat');
+      setFormData({ ...formData, startDate: today });
+      return;
+    }
+    
+    setFormData({ ...formData, startDate: newDate });
+    
+    // Auto-adjust startTime jika tanggal hari ini
+    if (newDate === today) {
+      const minTime = getMinTime(newDate);
+      if (!formData.startTime || formData.startTime < minTime) {
+        setFormData({ ...formData, startDate: newDate, startTime: minTime });
+      }
+    }
+    
+    // Auto-adjust endDate jika lebih kecil dari startDate
+    if (formData.endDate && formData.endDate < newDate) {
+      setFormData({ ...formData, startDate: newDate, endDate: newDate });
+    }
+  };
+
+  // Handler untuk perubahan startTime
+  const handleStartTimeChange = (newTime: string) => {
+    const minTime = getMinTime(formData.startDate);
+    const today = getMinDate();
+    
+    // Jika hari ini dan waktu < minimal, set ke minimal
+    if (formData.startDate === today && newTime < minTime) {
+      toast.error('Waktu mulai harus minimal 3 jam dari sekarang');
+      setFormData({ ...formData, startTime: minTime });
+      return;
+    }
+    
+    setFormData({ ...formData, startTime: newTime });
+    
+    // Auto-adjust endTime jika di hari yang sama dan endTime < startTime
+    if (formData.endDate === formData.startDate && formData.endTime && formData.endTime <= newTime) {
+      // Set endTime 1 jam setelah startTime sebagai default
+      const [hours, minutes] = newTime.split(':');
+      const newHour = (parseInt(hours) + 1).toString().padStart(2, '0');
+      const suggestedEndTime = `${newHour}:${minutes}`;
+      setFormData({ ...formData, startTime: newTime, endTime: suggestedEndTime });
+      toast.info('Waktu pulang disesuaikan agar setelah waktu masuk');
+    }
+  };
+
+  // Handler untuk perubahan endTime
+  const handleEndTimeChange = (newTime: string) => {
+    // Jika tanggal sama, waktu pulang harus setelah waktu masuk
+    if (formData.startDate === formData.endDate && formData.startTime) {
+      if (newTime <= formData.startTime) {
+        toast.error('Waktu pulang harus setelah waktu masuk');
+        // Set minimal 1 jam setelah waktu masuk
+        const [hours, minutes] = formData.startTime.split(':');
+        const newHour = (parseInt(hours) + 1).toString().padStart(2, '0');
+        const minEndTime = `${newHour}:${minutes}`;
+        setFormData({ ...formData, endTime: minEndTime });
+        return;
+      }
+    }
+    
+    setFormData({ ...formData, endTime: newTime });
+  };
+
+  // Fungsi untuk mendapatkan minimum end time
+  const getMinEndTime = () => {
+    if (!formData.startTime || !formData.startDate || !formData.endDate) return '00:00';
+    
+    // Jika tanggal sama, minimal 1 jam setelah waktu masuk
+    if (formData.startDate === formData.endDate) {
+      const [hours, minutes] = formData.startTime.split(':');
+      const minHour = parseInt(hours) + 1;
+      
+      // Jika sudah lewat jam 23, set ke 23:59
+      if (minHour > 23) {
+        return '23:59';
+      }
+      
+      return `${minHour.toString().padStart(2, '0')}:${minutes}`;
+    }
+    
+    return '00:00'; // Jika tanggal berbeda, bebas
+  };
 
   // Check if editing existing task (from URL params)
   useEffect(() => {
@@ -81,7 +221,6 @@ export default function CreateTaskPage() {
           endDate: task.endDate ? task.endDate.split('T')[0] : '',
           endTime: task.endTime || '',
           budget: task.budget?.toString() || '',
-          pricingType: task.pricingType || 'fixed',
           searchMethod: task.searchMethod || 'publication',
         });
         
@@ -107,8 +246,6 @@ export default function CreateTaskPage() {
           if (draftData.photoPreviews) {
             setPhotoPreviews(draftData.photoPreviews);
           }
-          // Note: File objects can't be restored from localStorage
-          // User will need to re-upload photos if they come back
         } catch (error) {
           console.error('Error loading draft:', error);
         }
@@ -127,7 +264,7 @@ export default function CreateTaskPage() {
           timestamp: new Date().toISOString()
         };
         localStorage.setItem('taskDraft', JSON.stringify(draftData));
-      }, 1000); // Debounce untuk 1 detik
+      }, 1000);
 
       return () => clearTimeout(timeoutId);
     }
@@ -147,7 +284,6 @@ export default function CreateTaskPage() {
       endDate: '',
       endTime: '',
       budget: '',
-      pricingType: 'fixed',
       searchMethod: 'publication',
     });
     setPhotos([]);
@@ -188,9 +324,26 @@ export default function CreateTaskPage() {
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    
+    // Validasi jumlah foto
     if (photos.length + files.length > 5) {
       toast.error('Maksimal 5 foto');
       return;
+    }
+
+    // Validasi ukuran dan tipe file
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    
+    for (const file of files) {
+      if (file.size > maxSize) {
+        toast.error(`File ${file.name} terlalu besar. Maksimal 5MB`);
+        return;
+      }
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(`File ${file.name} bukan format gambar yang didukung`);
+        return;
+      }
     }
 
     setPhotos([...photos, ...files]);
@@ -199,6 +352,9 @@ export default function CreateTaskPage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotoPreviews((prev) => [...prev, reader.result as string]);
+      };
+      reader.onerror = () => {
+        toast.error(`Gagal membaca file ${file.name}`);
       };
       reader.readAsDataURL(file);
     });
@@ -211,15 +367,27 @@ export default function CreateTaskPage() {
 
   const handleWorkerSelect = (worker: any) => {
     setSelectedWorker(worker);
-    // Keep find_worker as search method when worker is selected from AI recommendation
     toast.success(`🤖 ${worker.name} dipilih! Akan langsung ke halaman kontrak setelah tugas disimpan.`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validasi field wajib
     if (!formData.title || !formData.category || !formData.budget || !formData.description || !formData.location || !formData.startDate || !formData.startTime || !formData.endDate || !formData.endTime) {
       toast.error('Mohon lengkapi semua field yang wajib');
+      return;
+    }
+
+    // Validasi budget
+    const budgetValue = parseFloat(formData.budget);
+    if (isNaN(budgetValue) || budgetValue < 20000) {
+      toast.error('Budget minimal Rp 20.000');
+      return;
+    }
+
+    // Validasi waktu
+    if (!validateTime(formData.startDate, formData.startTime, formData.endDate, formData.endTime)) {
       return;
     }
 
@@ -235,26 +403,22 @@ export default function CreateTaskPage() {
         }
       });
 
-      photos.forEach((photo) => {
-        data.append('photos', photo);
-      });
-
-      console.log('Photos to be sent:', photos.length);
-      console.log('Photo details:', photos.map(p => ({ name: p.name, size: p.size, type: p.type })));
-      console.log('FormData entries:');
-      for (let [key, value] of data.entries()) {
-        console.log(key, value);
+      // Tambahkan foto dengan validasi
+      if (photos.length > 0) {
+        photos.forEach((photo, index) => {
+          console.log(`Adding photo ${index}:`, { name: photo.name, size: photo.size, type: photo.type });
+          data.append('photos', photo);
+        });
+        console.log('Total photos to upload:', photos.length);
       }
 
       let response;
       if (isEditMode && existingTaskId) {
-        // Update existing task
         response = await fetch(`/api/tasks/${existingTaskId}`, {
           method: 'PUT',
           body: data,
         });
       } else {
-        // Create new task
         response = await fetch('/api/tasks/create', {
           method: 'POST',
           body: data,
@@ -267,20 +431,16 @@ export default function CreateTaskPage() {
         const taskId = result.data._id;
         toast.success(isEditMode ? 'Tugas berhasil diperbarui!' : 'Tugas berhasil dibuat!');
         
-        // Clear draft from localStorage after successful creation/update
         localStorage.removeItem('taskDraft');
         
-        // Arahkan berdasarkan metode pencarian yang dipilih
         if (selectedWorker) {
-          // Jika pekerja sudah dipilih dari rekomendasi AI, langsung ke perjanjian
-          // Update task dengan worker yang dipilih terlebih dahulu
           const updateResponse = await fetch(`/api/tasks/${taskId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               assignedTo: selectedWorker._id,
               status: 'pending',
-              searchMethod: 'find_worker' // Pastikan method sesuai
+              searchMethod: 'find_worker'
             }),
           });
 
@@ -291,16 +451,15 @@ export default function CreateTaskPage() {
             toast.error('Gagal menugaskan pekerja');
           }
         } else if (formData.searchMethod === 'find_worker') {
-          // Jika pilih "Cari Pekerja" tanpa rekomendasi AI, arahkan ke halaman cari pekerja
           router.push(`/tugas/${taskId}/cari-pekerja`);
         } else {
-          // Jika pilih "Publikasikan", langsung ke perjanjian
           router.push(`/tugas/${taskId}/perjanjian`);
         }
       } else {
         toast.error(result.error || 'Terjadi kesalahan');
       }
     } catch (error) {
+      console.error('Submit error:', error);
       toast.error('Terjadi kesalahan saat menyimpan tugas');
     } finally {
       setIsSubmitting(false);
@@ -416,7 +575,7 @@ export default function CreateTaskPage() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center space-x-2">
                     <span>📸</span>
-                    <span>Foto Referensi</span>
+                    <span>Foto Referensi (Opsional)</span>
                   </h3>
 
                   <div className="grid grid-cols-3 gap-4">
@@ -430,7 +589,7 @@ export default function CreateTaskPage() {
                         <button
                           type="button"
                           onClick={() => removePhoto(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
                         >
                           ×
                         </button>
@@ -443,7 +602,7 @@ export default function CreateTaskPage() {
                         <span className="text-xs text-gray-500 mt-1">Tambah</span>
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
                           multiple
                           onChange={handlePhotoChange}
                           className="hidden"
@@ -455,12 +614,9 @@ export default function CreateTaskPage() {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start space-x-2">
                     <span className="text-blue-500">💡</span>
                     <div className="text-sm text-blue-700">
-                      <p>Foto yang jelas akan membantu pekerja memahami tugas dengan lebih baik</p>
-                      {photoPreviews.length > 0 && photos.length === 0 && (
-                        <p className="text-orange-600 mt-1">
-                          ⚠️ Foto dari draft tidak tersimpan. Silakan upload ulang foto Anda.
-                        </p>
-                      )}
+                      <p>• Maksimal 5 foto, setiap foto maksimal 5MB</p>
+                      <p>• Format yang didukung: JPG, PNG, WEBP</p>
+                      <p>• Foto yang jelas akan membantu pekerja memahami tugas dengan lebih baik</p>
                     </div>
                   </div>
                 </div>
@@ -512,8 +668,9 @@ export default function CreateTaskPage() {
                       <Input
                         id="startDate"
                         type="date"
+                        min={getMinDate()}
                         value={formData.startDate}
-                        onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                        onChange={(e) => handleStartDateChange(e.target.value)}
                         required
                       />
                     </div>
@@ -524,11 +681,15 @@ export default function CreateTaskPage() {
                       <Input
                         id="endDate"
                         type="date"
+                        min={formData.startDate || getMinDate()}
                         value={formData.endDate}
                         onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                        min={formData.startDate}
                         required
+                        disabled={!formData.startDate}
                       />
+                      {!formData.startDate && (
+                        <p className="text-xs text-gray-500 mt-1">Pilih tanggal mulai terlebih dahulu</p>
+                      )}
                     </div>
                   </div>
 
@@ -541,9 +702,18 @@ export default function CreateTaskPage() {
                         id="startTime"
                         type="time"
                         value={formData.startTime}
-                        onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                        onChange={(e) => handleStartTimeChange(e.target.value)}
                         required
+                        disabled={!formData.startDate}
                       />
+                      {formData.startDate && formData.startDate === getMinDate() && (
+                        <p className="text-xs text-orange-600 mt-1">
+                          ⏰ Minimal: {getMinTime(formData.startDate)} (3 jam dari sekarang)
+                        </p>
+                      )}
+                      {!formData.startDate && (
+                        <p className="text-xs text-gray-500 mt-1">Pilih tanggal mulai terlebih dahulu</p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="endTime">
@@ -553,17 +723,27 @@ export default function CreateTaskPage() {
                         id="endTime"
                         type="time"
                         value={formData.endTime}
-                        onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                        onChange={(e) => handleEndTimeChange(e.target.value)}
                         required
+                        disabled={!formData.startTime}
                       />
+                      {formData.startDate === formData.endDate && formData.startTime && (
+                        <p className="text-xs text-orange-600 mt-1">
+                          ⏰ Minimal: {getMinEndTime()} (1 jam setelah waktu masuk)
+                        </p>
+                      )}
+                      {!formData.startTime && (
+                        <p className="text-xs text-gray-500 mt-1">Pilih waktu masuk terlebih dahulu</p>
+                      )}
                     </div>
                   </div>
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start space-x-2">
                     <span className="text-blue-500">💡</span>
                     <div className="text-sm text-blue-700">
+                      <p>• Waktu mulai minimal 3 jam dari sekarang</p>
+                      <p>• Tanggal tidak bisa dipilih yang sudah lewat</p>
                       <p>• Koordinat GPS membantu pekerja menemukan lokasi dengan akurat</p>
-                      <p>• Pastikan waktu masuk dan pulang sesuai dengan kebutuhan pekerjaan</p>
                     </div>
                   </div>
                 </div>
@@ -572,38 +752,12 @@ export default function CreateTaskPage() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center space-x-2">
                     <span>💰</span>
-                    <span>Budget & Pembayaran</span>
+                    <span>Budget Pembayaran</span>
                   </h3>
 
                   <div>
-                    <Label>
-                      Tipe Pembayaran <span className="text-red-500">*</span>
-                    </Label>
-                    <select
-                      className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mt-2"
-                      value={formData.pricingType}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        pricingType: e.target.value as 'fixed' | 'hourly' | 'daily' | 'weekly' | 'monthly'
-                      })}
-                      required
-                    >
-                      <option value="fixed">Harga Tetap</option>
-                      <option value="hourly">Per Jam</option>
-                      <option value="daily">Per Hari</option>
-                      <option value="weekly">Per Minggu</option>
-                      <option value="monthly">Per Bulan</option>
-                    </select>
-                  </div>
-
-                  <div>
                     <Label htmlFor="budget">
-                      Budget{' '}
-                      {formData.pricingType === 'hourly' && '(per jam)'}
-                      {formData.pricingType === 'daily' && '(per hari)'}
-                      {formData.pricingType === 'weekly' && '(per minggu)'}
-                      {formData.pricingType === 'monthly' && '(per bulan)'}
-                      {' '}<span className="text-red-500">*</span>
+                      Budget <span className="text-red-500">*</span>
                     </Label>
                     <div className="flex">
                       <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
@@ -611,27 +765,43 @@ export default function CreateTaskPage() {
                       </span>
                       <Input
                         id="budget"
-                        type="number"
-                        placeholder={
-                          formData.pricingType === 'hourly' ? '50000' :
-                          formData.pricingType === 'daily' ? '300000' :
-                          formData.pricingType === 'weekly' ? '1500000' :
-                          formData.pricingType === 'monthly' ? '5000000' :
-                          '150000'
-                        }
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="20.000"
                         className="rounded-l-none"
                         value={formData.budget}
-                        onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                        onChange={(e) => {
+                          // Hanya izinkan angka
+                          const value = e.target.value.replace(/\D/g, '');
+                          
+                          // Format dengan titik ribuan
+                          const formatted = value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                          
+                          setFormData({ ...formData, budget: value }); // Simpan nilai asli tanpa format
+                        }}
+                        onBlur={(e) => {
+                          // Validasi saat blur
+                          const numValue = parseInt(formData.budget);
+                          if (formData.budget && numValue < 20000) {
+                            toast.error('Budget minimal Rp 20.000');
+                            setFormData({ ...formData, budget: '20000' });
+                          }
+                        }}
                         required
                       />
                     </div>
-                    {formData.pricingType !== 'fixed' && (
-                      <div className="text-xs text-gray-600 mt-1">
-                        {formData.pricingType === 'hourly' && 'Total akan dihitung berdasarkan jam kerja aktual'}
-                        {formData.pricingType === 'daily' && 'Total akan dihitung berdasarkan hari kerja'}
-                        {formData.pricingType === 'weekly' && 'Total akan dihitung berdasarkan minggu kerja'}
-                        {formData.pricingType === 'monthly' && 'Total akan dihitung berdasarkan bulan kerja'}
-                      </div>
+                    {formData.budget && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        {parseInt(formData.budget) >= 20000 ? (
+                          <span className="text-green-600">
+                            ✓ Rp {parseInt(formData.budget).toLocaleString('id-ID')}
+                          </span>
+                        ) : (
+                          <span className="text-red-600">
+                            ✗ Minimal Rp 20.000
+                          </span>
+                        )}
+                      </p>
                     )}
                   </div>
                   
@@ -654,7 +824,7 @@ export default function CreateTaskPage() {
                     <div
                       onClick={() => {
                         setFormData({ ...formData, searchMethod: 'publication' });
-                        setSelectedWorker(null); // Clear selected worker when switching to publication
+                        setSelectedWorker(null);
                       }}
                       className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
                         formData.searchMethod === 'publication'
@@ -704,7 +874,7 @@ export default function CreateTaskPage() {
                   </div>
                 </div>
 
-                {/* Rekomendasi Pekerja Cerdas - Hanya muncul saat "Cari Pekerja" dipilih */}
+                {/* Rekomendasi Pekerja Cerdas */}
                 {formData.searchMethod === 'find_worker' && (
                   <div className="space-y-4">
                     <WorkerRecommendation
@@ -770,11 +940,10 @@ export default function CreateTaskPage() {
           </Card>
         </div>
 
-        {/* Koordinat Lokasi Modal */}
+        {/* Modal Koordinat Lokasi */}
         {showMapModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
-              {/* Header */}
               <div className="p-6 border-b border-gray-100">
                 <div className="flex justify-between items-center">
                   <div>
@@ -792,7 +961,6 @@ export default function CreateTaskPage() {
                 </div>
               </div>
               
-              {/* Content */}
               <div className="p-6">
                 <div className="bg-gray-50 rounded-lg p-6">
                   <div className="text-center mb-6">
@@ -833,7 +1001,6 @@ export default function CreateTaskPage() {
                   </div>
                 </div>
                 
-                {/* Button Gunakan Lokasi */}
                 <Button
                   type="button"
                   variant="outline"
@@ -862,7 +1029,6 @@ export default function CreateTaskPage() {
                   Gunakan Lokasi Saat Ini
                 </Button>
                 
-                {/* Preview koordinat jika sudah ada */}
                 {(tempCoordinates.lat !== 0 && tempCoordinates.lng !== 0) && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
                     <div className="flex items-center">
@@ -878,7 +1044,6 @@ export default function CreateTaskPage() {
                 )}
               </div>
               
-              {/* Footer */}
               <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-xl">
                 <div className="flex justify-end space-x-3">
                   <Button

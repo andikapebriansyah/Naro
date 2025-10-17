@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KawanKerja - Verifikasi KTP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .phone-frame {
+            width: 440px;
+            height: 956px;
+            background: #F8F9FE;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: #F7FAFC;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #4A5568;
+            font-size: 20px;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2D3748;
+        }
+
+        .container {
+            flex: 1;
+            padding: 32px 24px;
+            overflow-y: auto;
+        }
+
+        .verification-info {
+            background: linear-gradient(135deg, #EBF4FF 0%, #E6F2FF 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 32px;
+            border: 2px solid #BEE3F8;
+        }
+
+        .info-icon {
+            width: 48px;
+            height: 48px;
+            background: #6B8EF9;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            color: white;
+            font-size: 24px;
+        }
+
+        .info-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2D3748;
+            margin-bottom: 8px;
+        }
+
+        .info-text {
+            font-size: 14px;
+            color: #4A5568;
+            line-height: 1.6;
+        }
+
+        .upload-section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 12px;
+        }
+
+        .upload-box {
+            background: white;
+            border: 2px dashed #CBD5E0;
+            border-radius: 16px;
+            padding: 32px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-box:hover {
+            border-color: #6B8EF9;
+            background: #F7FAFC;
+        }
+
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            background: #EDF2F7;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: #6B8EF9;
+            font-size: 28px;
+        }
+
+        .upload-text {
+            font-size: 15px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 4px;
+        }
+
+        .upload-subtext {
+            font-size: 13px;
+            color: #718096;
+        }
+
+        .requirements {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .req-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 16px;
+        }
+
+        .req-item {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #4A5568;
+        }
+
+        .req-icon {
+            color: #48BB78;
+            font-weight: bold;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(107, 142, 249, 0.3);
+            margin-top: 8px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(107, 142, 249, 0.4);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .status-pending {
+            background: #FFF5E6;
+            color: #D97706;
+        }
+
+        .status-approved {
+            background: #D1FAE5;
+            color: #059669;
+        }
+
+        .status-rejected {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="header">
+            <div class="header-content">
+                <button class="back-btn">←</button>
+                <h1 class="header-title">Verifikasi Identitas</h1>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="verification-info">
+                <div class="info-icon">🔒</div>
+                <h2 class="info-title">Mengapa perlu verifikasi?</h2>
+                <p class="info-text">
+                    Verifikasi identitas diperlukan untuk memastikan keamanan dan kepercayaan semua pengguna KawanKerja. Data Anda akan dijaga kerahasiaannya.
+                </p>
+            </div>
+
+            <div class="upload-section">
+                <h3 class="section-title">1. Upload Foto KTP</h3>
+                <div class="upload-box">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">Ambil atau pilih foto KTP</div>
+                    <div class="upload-subtext">Format: JPG, PNG (Max 5MB)</div>
+                </div>
+            </div>
+
+            <div class="upload-section">
+                <h3 class="section-title">2. Upload Selfie dengan KTP</h3>
+                <div class="upload-box">
+                    <div class="upload-icon">🤳</div>
+                    <div class="upload-text">Ambil atau pilih foto selfie</div>
+                    <div class="upload-subtext">Pastikan wajah dan KTP terlihat jelas</div>
+                </div>
+            </div>
+
+            <div class="requirements">
+                <h3 class="req-title">Persyaratan Foto:</h3>
+                <div class="req-item">
+                    <span class="req-icon">✓</span>
+                    <span>Foto KTP harus jelas dan tidak blur</span>
+                </div>
+                <div class="req-item">
+                    <span class="req-icon">✓</span>
+                    <span>Semua informasi pada KTP dapat terbaca</span>
+                </div>
+                <div class="req-item">
+                    <span class="req-icon">✓</span>
+                    <span>Selfie harus menunjukkan wajah dan KTP dengan jelas</span>
+                </div>
+                <div class="req-item">
+                    <span class="req-icon">✓</span>
+                    <span>Pencahayaan yang cukup</span>
+                </div>
+            </div>
+
+            <button class="btn-submit">Kirim Verifikasi</button>
+
+            <div style="text-align: center;">
+                <span class="status-badge status-pending">
+                    ⏱️ Menunggu Verifikasi
+                </span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

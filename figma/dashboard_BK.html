@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KawanKerja - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .phone-frame {
+            width: 440px;
+            height: 956px;
+            background: #F5F7FA;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: white;
+            padding: 24px 24px 20px;
+        }
+
+        .profile-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .avatar {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .profile-text {
+            flex: 1;
+        }
+
+        .greeting {
+            font-size: 13px;
+            color: #718096;
+            margin-bottom: 2px;
+        }
+
+        .user-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2D3748;
+        }
+
+        .header-icons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            width: 44px;
+            height: 44px;
+            background: #F7FAFC;
+            border-radius: 12px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+
+        .notification-dot {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 8px;
+            height: 8px;
+            background: #EF4444;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .mode-selector {
+            background: #F7FAFC;
+            border-radius: 14px;
+            padding: 5px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+
+        .mode-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: transparent;
+            color: #718096;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(107, 142, 249, 0.25);
+        }
+
+        .container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .hero-card {
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+            color: white;
+            box-shadow: 0 8px 24px rgba(107, 142, 249, 0.35);
+        }
+
+        .hero-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .hero-text h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .hero-text p {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-bottom: 16px;
+        }
+
+        .hero-btn {
+            background: white;
+            color: #6B8EF9;
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .hero-btn:active {
+            transform: scale(0.95);
+        }
+
+        .hero-illustration {
+            font-size: 64px;
+        }
+
+        .mini-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .mini-stat {
+            background: white;
+            border-radius: 16px;
+            padding: 16px 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .mini-stat-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .mini-stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2D3748;
+            margin-bottom: 2px;
+        }
+
+        .mini-stat-label {
+            font-size: 11px;
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #2D3748;
+        }
+
+        .see-all-link {
+            font-size: 13px;
+            color: #6B8EF9;
+            text-decoration: none;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .task-item {
+            background: white;
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid #EDF2F7;
+            transition: all 0.2s ease;
+        }
+
+        .task-item:active {
+            transform: scale(0.98);
+        }
+
+        .task-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .task-main {
+            flex: 1;
+        }
+
+        .task-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 4px;
+        }
+
+        .task-category {
+            font-size: 12px;
+            color: #A0AEC0;
+            font-weight: 500;
+        }
+
+        .task-status {
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-progress {
+            background: #D1FAE5;
+            color: #059669;
+        }
+
+        .status-waiting {
+            background: #FEF3C7;
+            color: #D97706;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .task-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid #F7FAFC;
+        }
+
+        .task-price {
+            font-size: 17px;
+            font-weight: 700;
+            color: #6B8EF9;
+        }
+
+        .task-action {
+            padding: 8px 16px;
+            background: #F7FAFC;
+            color: #6B8EF9;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .quick-action-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid #EDF2F7;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .quick-action-card:active {
+            transform: scale(0.95);
+        }
+
+        .quick-action-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #EBF4FF 0%, #E6F2FF 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin: 0 auto 12px;
+        }
+
+        .quick-action-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 4px;
+        }
+
+        .quick-action-desc {
+            font-size: 11px;
+            color: #A0AEC0;
+        }
+
+        .alert-card {
+            background: linear-gradient(135deg, #FFF5E6 0%, #FFEDD5 100%);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-left: 4px solid #F59E0B;
+        }
+
+        .alert-icon {
+            font-size: 22px;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #92400E;
+            margin-bottom: 2px;
+        }
+
+        .alert-text {
+            font-size: 12px;
+            color: #B45309;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="header">
+            <div class="profile-section">
+                <div class="profile-info">
+                    <div class="avatar">AR</div>
+                    <div class="profile-text">
+                        <div class="greeting">Halo, selamat datang 👋</div>
+                        <div class="user-name">Ahmad Rizki</div>
+                    </div>
+                </div>
+                <div class="header-icons">
+                    <button class="icon-btn">🔍</button>
+                    <button class="icon-btn">
+                        🔔
+                        <span class="notification-dot"></span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mode-selector">
+                <button class="mode-btn active">Beri Kerja</button>
+                <button class="mode-btn">Cari Kerja</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="alert-card">
+                <div class="alert-icon">✅</div>
+                <div class="alert-content">
+                    <div class="alert-title">Verifikasi Berhasil!</div>
+                    <div class="alert-text">Akun Anda sudah terverifikasi dan siap digunakan</div>
+                </div>
+            </div>
+
+            <div class="hero-card">
+                <div class="hero-content">
+                    <div class="hero-text">
+                        <h2>Butuh Bantuan<br>Pekerjaan?</h2>
+                        <p>Posting tugas dan temukan<br>pekerja terbaik</p>
+                        <button class="hero-btn">
+                            <span>➕</span>
+                            <span>Buat Tugas Baru</span>
+                        </button>
+                    </div>
+                    <div class="hero-illustration">🚀</div>
+                </div>
+            </div>
+
+            <div class="mini-stats">
+                <div class="mini-stat">
+                    <div class="mini-stat-icon">📋</div>
+                    <div class="mini-stat-value">5</div>
+                    <div class="mini-stat-label">Aktif</div>
+                </div>
+                <div class="mini-stat">
+                    <div class="mini-stat-icon">✓</div>
+                    <div class="mini-stat-value">18</div>
+                    <div class="mini-stat-label">Selesai</div>
+                </div>
+                <div class="mini-stat">
+                    <div class="mini-stat-icon">⏱️</div>
+                    <div class="mini-stat-value">3</div>
+                    <div class="mini-stat-label">Pending</div>
+                </div>
+                <div class="mini-stat">
+                    <div class="mini-stat-icon">⭐</div>
+                    <div class="mini-stat-value">4.8</div>
+                    <div class="mini-stat-label">Rating</div>
+                </div>
+            </div>
+
+            <div class="section-header">
+                <h2 class="section-title">Tugas Berlangsung</h2>
+                <a href="#" class="see-all-link">Semua <span>→</span></a>
+            </div>
+
+            <div class="task-list">
+                <div class="task-item">
+                    <div class="task-top">
+                        <div class="task-main">
+                            <div class="task-title">Bersihkan Rumah 2 Lantai</div>
+                            <div class="task-category">Kebersihan & Perawatan</div>
+                        </div>
+                        <div class="task-status status-progress">Proses</div>
+                    </div>
+                    <div class="task-meta">
+                        <div class="meta-item">
+                            <span>📍</span>
+                            <span>Banda Aceh</span>
+                        </div>
+                        <div class="meta-item">
+                            <span>📅</span>
+                            <span>Hari ini, 14:00</span>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <div class="task-price">Rp 150.000</div>
+                        <button class="task-action">Detail →</button>
+                    </div>
+                </div>
+
+                <div class="task-item">
+                    <div class="task-top">
+                        <div class="task-main">
+                            <div class="task-title">Service & Perbaikan AC Split</div>
+                            <div class="task-category">Teknisi & Perbaikan</div>
+                        </div>
+                        <div class="task-status status-waiting">Menunggu</div>
+                    </div>
+                    <div class="task-meta">
+                        <div class="meta-item">
+                            <span>📍</span>
+                            <span>Ulee Kareng</span>
+                        </div>
+                        <div class="meta-item">
+                            <span>📅</span>
+                            <span>Besok, 10:00</span>
+                        </div>
+                    </div>
+                    <div class="task-footer">
+                        <div class="task-price">Rp 200.000</div>
+                        <button class="task-action">Detail →</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-header">
+                <h2 class="section-title">Menu Cepat</h2>
+            </div>
+
+            <div class="quick-actions">
+                <div class="quick-action-card">
+                    <div class="quick-action-icon">🔍</div>
+                    <div class="quick-action-title">Cari Tasker</div>
+                    <div class="quick-action-desc">Temukan pekerja</div>
+                </div>
+                <div class="quick-action-card">
+                    <div class="quick-action-icon">📝</div>
+                    <div class="quick-action-title">Riwayat</div>
+                    <div class="quick-action-desc">Lihat semua tugas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat - Selesai</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .phone-frame {
+            width: 440px;
+            height: 956px;
+            background: #F5F7FA;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: white;
+            padding: 16px 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .header-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            background: #F7FAFC;
+            border: none;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .header-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 700;
+            color: #2D3748;
+        }
+
+        .filter-btn {
+            width: 40px;
+            height: 40px;
+            background: #F7FAFC;
+            border: none;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 10px 16px;
+            background: #F7FAFC;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #718096;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            color: white;
+        }
+
+        .container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 16px;
+            border-left: 4px solid #10B981;
+            display: flex;
+            gap: 12px;
+            align-items: start;
+        }
+
+        .info-icon {
+            font-size: 20px;
+        }
+
+        .info-text {
+            flex: 1;
+        }
+
+        .info-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #065F46;
+            margin-bottom: 4px;
+        }
+
+        .info-desc {
+            font-size: 11px;
+            color: #047857;
+            line-height: 1.5;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-mini {
+            background: white;
+            border-radius: 12px;
+            padding: 12px 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .stat-mini-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #10B981;
+            margin-bottom: 4px;
+        }
+
+        .stat-mini-label {
+            font-size: 10px;
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .filter-pills {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .pill {
+            padding: 8px 14px;
+            background: white;
+            border: 2px solid #E2E8F0;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #718096;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+
+        .pill.active {
+            background: #10B981;
+            border-color: #10B981;
+            color: white;
+        }
+
+        .job-card {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid #EDF2F7;
+        }
+
+        .job-card.completed {
+            background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
+            border-left: 4px solid #10B981;
+        }
+
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .job-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 4px;
+        }
+
+        .job-poster {
+            font-size: 11px;
+            color: #A0AEC0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-completed {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+
+        .job-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 11px;
+            color: #718096;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .review-section {
+            background: #F7FAFC;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .review-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .review-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .review-info {
+            flex: 1;
+        }
+
+        .review-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 2px;
+        }
+
+        .review-rating {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .rating-stars {
+            color: #F59E0B;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .rating-value {
+            font-size: 11px;
+            color: #718096;
+            font-weight: 600;
+        }
+
+        .review-text {
+            font-size: 11px;
+            color: #4A5568;
+            line-height: 1.5;
+            margin-top: 6px;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+
+        .review-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .badge-given {
+            background: #DBEAFE;
+            color: #2563EB;
+        }
+
+        .badge-received {
+            background: #D1FAE5;
+            color: #059669;
+        }
+
+        .badge-pending {
+            background: #FEF3C7;
+            color: #D97706;
+        }
+
+        .review-divider {
+            height: 1px;
+            background: #E2E8F0;
+            margin: 10px 0;
+        }
+
+        .job-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid #E2E8F0;
+        }
+
+        .job-price {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .price-amount {
+            font-size: 16px;
+            font-weight: 700;
+            color: #10B981;
+        }
+
+        .price-label {
+            font-size: 10px;
+            color: #718096;
+        }
+
+        .job-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-outline {
+            background: white;
+            color: #718096;
+            border: 2px solid #E2E8F0;
+        }
+
+        .btn-warning {
+            background: #F59E0B;
+            color: white;
+        }
+
+        .month-divider {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4A5568;
+            margin: 20px 0 12px;
+            padding-left: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="header">
+            <div class="header-top">
+                <button class="back-btn">←</button>
+                <h1 class="header-title">Riwayat Pekerjaan</h1>
+                <button class="filter-btn">⚙️</button>
+            </div>
+            <div class="tabs">
+                <button class="tab">Pending</button>
+                <button class="tab">Dalam Proses</button>
+                <button class="tab active">Selesai</button>
+                <button class="tab">Dibatalkan</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="info-card">
+                <div class="info-icon">✓</div>
+                <div class="info-text">
+                    <div class="info-title">Pekerjaan Selesai</div>
+                    <div class="info-desc">Anda telah menyelesaikan 24 pekerjaan dengan total pendapatan Rp 7.2 juta.</div>
+                </div>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-mini">
+                    <div class="stat-mini-value">24</div>
+                    <div class="stat-mini-label">Total</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="stat-mini-value">4.9</div>
+                    <div class="stat-mini-label">Rating Anda</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="stat-mini-value">7.2M</div>
+                    <div class="stat-mini-label">Earned</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="stat-mini-value">95%</div>
+                    <div class="stat-mini-label">On-time</div>
+                </div>
+            </div>
+
+            <div class="filter-pills">
+                <div class="pill active">Semua</div>
+                <div class="pill">Bulan Ini</div>
+                <div class="pill">Perlu Direview</div>
+                <div class="pill">Rating Tinggi</div>
+            </div>
+
+            <div class="month-divider">Oktober 2025</div>
+
+            <div class="job-card completed">
+                <div class="job-header">
+                    <div>
+                        <div class="job-title">Perbaikan AC + Pasang Bracket</div>
+                        <div class="job-poster">
+                            <span>Pak Ahmad</span>
+                            <span>✓</span>
+                        </div>
+                    </div>
+                    <div class="badge badge-completed">Selesai</div>
+                </div>
+                <div class="job-meta">
+                    <div class="meta-item">
+                        <span>📍</span>
+                        <span>Banda Aceh</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>📅</span>
+                        <span>3 Okt 2025</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>⏱️</span>
+                        <span>3 jam</span>
+                    </div>
+                </div>
+                <div class="review-section">
+                    <div class="review-header">
+                        <div class="review-avatar" style="background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);">PA</div>
+                        <div class="review-info">
+                            <div class="review-name">Pak Ahmad</div>
+                            <div class="review-rating">
+                                <span class="rating-stars">★★★★★</span>
+                                <span class="rating-value">5.0</span>
+                            </div>
+                        </div>
+                        <div class="review-badge badge-received">Anda Terima</div>
+                    </div>
+                    <div class="review-text">"Kerja cepat dan rapi, sangat puas!"</div>
+                    <div class="review-divider"></div>
+                    <div class="review-header">
+                        <div class="review-avatar" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">AN</div>
+                        <div class="review-info">
+                            <div class="review-name">Anda</div>
+                            <div class="review-rating">
+                                <span class="rating-stars">★★★★★</span>
+                                <span class="rating-value">5.0</span>
+                            </div>
+                        </div>
+                        <div class="review-badge badge-given">Anda Beri</div>
+                    </div>
+                    <div class="review-text">"Pemberi kerja yang baik, komunikatif dan ramah"</div>
+                </div>
+                <div class="job-footer">
+                    <div class="job-price">
+                        <div class="price-amount">Rp 350.000</div>
+                        <div class="price-label">Dibayar 3 Okt</div>
+                    </div>
+                    <div class="job-actions">
+                        <button class="btn btn-outline">Detail</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="job-card completed">
+                <div class="job-header">
+                    <div>
+                        <div class="job-title">Pasang Keramik Kamar Mandi</div>
+                        <div class="job-poster">
+                            <span>Ibu Siti</span>
+                            <span>✓</span>
+                        </div>
+                    </div>
+                    <div class="badge badge-completed">Selesai</div>
+                </div>
+                <div class="job-meta">
+                    <div class="meta-item">
+                        <span>📍</span>
+                        <span>Syiah Kuala</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>📅</span>
+                        <span>1 Okt 2025</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>⏱️</span>
+                        <span>2 hari</span>
+                    </div>
+                </div>
+                <div class="review-section">
+                    <div class="review-header">
+                        <div class="review-avatar" style="background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);">IS</div>
+                        <div class="review-info">
+                            <div class="review-name">Ibu Siti</div>
+                            <div class="review-rating">
+                                <span class="rating-stars">★★★★★</span>
+                                <span class="rating-value">5.0</span>
+                            </div>
+                        </div>
+                        <div class="review-badge badge-received">Anda Terima</div>
+                    </div>
+                    <div class="review-text">"Hasil memuaskan, keramik terpasang dengan rapi"</div>
+                    <div class="review-divider"></div>
+                    <div class="review-header">
+                        <div class="review-avatar" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">AN</div>
+                        <div class="review-info">
+                            <div class="review-name">Anda</div>
+                            <div class="review-rating">
+                                <span style="color: #A0AEC0; font-size: 11px;">Belum direview</span>
+                            </div>
+                        </div>
+                        <div class="review-badge badge-pending">Perlu Review</div>
+                    </div>
+                </div>
+                <div class="job-footer">
+                    <div class="job-price">
+                        <div class="price-amount">Rp 800.000</div>
+                        <div class="price-label">Dibayar 1 Okt</div>
+                    </div>
+                    <div class="job-actions">
+                        <button class="btn btn-outline">Detail</button>
+                        <button class="btn btn-warning">Beri Rating</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="month-divider">September 2025</div>
+
+            <div class="job-card completed">
+                <div class="job-header">
+                    <div>
+                        <div class="job-title">Service Motor Beat + Ganti Oli</div>
+                        <div class="job-poster">
+                            <span>Rizki Maulana</span>
+                            <span>✓</span>
+                        </div>
+                    </div>
+                    <div class="badge badge-completed">Selesai</div>
+                </div>
+                <div class="job-meta">
+                    <div class="meta-item">
+                        <span>📍</span>
+                        <span>Kuta Alam</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>📅</span>
+                        <span>28 Sep 2025</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>⏱️</span>
+                        <span>1.5 jam</span>
+                    </div>
+                </div>
+                <div class="review-section">
+                    <div class="review-header">
+                        <div class="review-avatar" style="background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);">RM</div>
+                        <div class="review-info">
+                            <div class="review-name">Rizki Maulana</div>
+                            <div class="review-rating">
+                                <span class="rating-stars">★★★★☆</span>
+                                <span class="rating-value">4.0</span>
+                            </div>
+                        </div>
+                        <div class="review-badge badge-received">Anda Terima</div>
+                    </div>
+                    <div class="review-text">"Bagus, motor jadi lancar lagi"</div>
+                    <div class="review-divider"></div>
+                    <div class="review-header">
+                        <div class="review-avatar" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">AN</div>
+                        <div class="review-info">
+                            <div class="review-name">Anda</div>
+                            <div class="review-rating">
+                                <span class="rating-stars">★★★★</span>
+                                <span class="rating-value">4.0</span>
+                            </div>
+                        </div>
+                        <div class="review-badge badge-given">Anda Beri</div>
+                    </div>
+                    <div class="review-text">"Orangnya baik, tapi lokasi agak susah dicari"</div>
+                </div>
+                <div class="job-footer">
+                    <div class="job-price">
+                        <div class="price-amount">Rp 125.000</div>
+                        <div class="price-label">Dibayar 28 Sep</div>
+                    </div>
+                    <div class="job-actions">
+                        <button class="btn btn-outline">Detail</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="job-card completed">
+                <div class="job-header">
+                    <div>
+                        <div class="job-title">Potong Rumput & Bersihkan Taman</div>
+                        <div class="job-poster">
+                            <span>Pak Hasan</span>
+                            <span>✓</span>
+                        </div>
+                    </div>
+                    <div class="badge badge-completed">Selesai</div>
+                </div>
+                <div class="job-meta">
+                    <div class="meta-item">
+                        <span>📍</span>
+                        <span>Lueng Bata</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>📅</span>
+                        <span>25 Sep 2025</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>⏱️</span>
+                        <span>2 jam</span>
+                    </div>
+                </div>
+                <div class="review-section">
+                    <div class="review-header">
+                        <div class="review-avatar" style="background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);">PH</div>
+                        <div class="review-info">
+                            <div class="review-name">Pak Hasan</div>
+                            <div class="review-rating">
+                                <span style="color: #A0AEC0; font-size: 11px;">Belum direview</span>
+                            </div>
+                        </div>
+                        <div class="review-badge badge-pending">Menunggu</div>
+                    </div>
+                    <div class="review-divider"></div>
+                    <div class="review-header">
+                        <div class="review-avatar" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">AN</div>
+                        <div class="review-info">
+                            <div class="review-name">Anda</div>
+                            <div class="review-rating">
+                                <span class="rating-stars">★★★★★</span>
+                                <span class="rating-value">5.0</span>
+                            </div>
+                        </div>
+                        <div class="review-badge badge-given">Anda Beri</div>
+                    </div>
+                    <div class="review-text">"Orangnya ramah, pembayaran tepat waktu"</div>
+                </div>
+                <div class="job-footer">
+                    <div class="job-price">
+                        <div class="price-amount">Rp 180.000</div>
+                        <div class="price-label">Dibayar 25 Sep</div>
+                    </div>
+                    <div class="job-actions">
+                        <button class="btn btn-outline">Detail</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

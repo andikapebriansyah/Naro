@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KawanKerja - Surat Perjanjian</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .phone-frame {
+            width: 440px;
+            height: 956px;
+            background: #F5F7FA;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            background: #F7FAFC;
+            border-radius: 12px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .header-title {
+            flex: 1;
+        }
+
+        .header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2D3748;
+            margin-bottom: 2px;
+        }
+
+        .header-title p {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .alert-card {
+            background: linear-gradient(135deg, #EBF4FF 0%, #DBEAFE 100%);
+            border-radius: 14px;
+            padding: 14px 16px;
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #6B8EF9;
+        }
+
+        .alert-icon {
+            font-size: 22px;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1E40AF;
+            margin-bottom: 2px;
+        }
+
+        .alert-text {
+            font-size: 12px;
+            color: #3B82F6;
+        }
+
+        .task-summary {
+            background: white;
+            border-radius: 18px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .summary-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #2D3748;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid #F7FAFC;
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            font-size: 13px;
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .summary-value {
+            font-size: 13px;
+            color: #2D3748;
+            font-weight: 600;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2D3748;
+        }
+
+        .template-btn {
+            padding: 6px 12px;
+            background: #EBF4FF;
+            color: #6B8EF9;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .template-btn:active {
+            transform: scale(0.95);
+        }
+
+        .clause-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .clause-item {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1.5px solid #E2E8F0;
+            transition: all 0.2s ease;
+        }
+
+        .clause-item.selected {
+            border-color: #6B8EF9;
+            background: #F7FBFF;
+        }
+
+        .clause-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .checkbox-wrapper {
+            position: relative;
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .checkbox-input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .checkbox-custom {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #CBD5E0;
+            border-radius: 6px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .checkbox-input:checked + .checkbox-custom {
+            background: #6B8EF9;
+            border-color: #6B8EF9;
+        }
+
+        .checkbox-custom::after {
+            content: '✓';
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            display: none;
+        }
+
+        .checkbox-input:checked + .checkbox-custom::after {
+            display: block;
+        }
+
+        .clause-content {
+            flex: 1;
+        }
+
+        .clause-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 6px;
+        }
+
+        .clause-description {
+            font-size: 12px;
+            color: #718096;
+            line-height: 1.5;
+        }
+
+        .custom-clause-section {
+            background: white;
+            border-radius: 18px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .custom-clause-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #2D3748;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .custom-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #E2E8F0;
+            border-radius: 12px;
+            font-size: 13px;
+            color: #2D3748;
+            background: #F7FAFC;
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .custom-textarea:focus {
+            outline: none;
+            border-color: #6B8EF9;
+            background: white;
+        }
+
+        .preview-card {
+            background: white;
+            border-radius: 18px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .preview-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #2D3748;
+        }
+
+        .preview-btn {
+            padding: 8px 14px;
+            background: #F7FAFC;
+            color: #6B8EF9;
+            border: 1.5px solid #E2E8F0;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .preview-btn:active {
+            transform: scale(0.95);
+        }
+
+        .preview-content {
+            background: #F7FAFC;
+            border-radius: 12px;
+            padding: 16px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 12px;
+            color: #4A5568;
+            line-height: 1.6;
+        }
+
+        .preview-content h3 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #2D3748;
+            margin: 12px 0 8px;
+        }
+
+        .preview-content h3:first-child {
+            margin-top: 0;
+        }
+
+        .preview-content p {
+            margin-bottom: 8px;
+        }
+
+        .submit-section {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 16px 24px 24px;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .secondary-btn {
+            flex: 1;
+            padding: 14px;
+            background: white;
+            color: #6B8EF9;
+            border: 1.5px solid #6B8EF9;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .secondary-btn:active {
+            transform: scale(0.98);
+        }
+
+        .primary-btn {
+            flex: 2;
+            padding: 14px;
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(107, 142, 249, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .primary-btn:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="header">
+            <button class="back-btn">←</button>
+            <div class="header-title">
+                <h1>Surat Perjanjian</h1>
+                <p>Atur ketentuan pekerjaan</p>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="alert-card">
+                <div class="alert-icon">📄</div>
+                <div class="alert-content">
+                    <div class="alert-title">Perjanjian Kerja</div>
+                    <div class="alert-text">Pilih klausul yang ingin dimasukkan dalam perjanjian</div>
+                </div>
+            </div>
+
+            <div class="task-summary">
+                <div class="summary-title">
+                    <span>📋</span>
+                    <span>Ringkasan Tugas</span>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Judul</div>
+                    <div class="summary-value">Bersihkan Rumah 2 Lantai</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Kategori</div>
+                    <div class="summary-value">Kebersihan & Perawatan</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Lokasi</div>
+                    <div class="summary-value">Banda Aceh, Aceh</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Jadwal</div>
+                    <div class="summary-value">6 Okt 2025, 14:00</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Budget</div>
+                    <div class="summary-value">Rp 150.000 (Harga Tetap)</div>
+                </div>
+            </div>
+
+            <div class="section-header">
+                <h2 class="section-title">Klausul Perjanjian</h2>
+                <button class="template-btn">📝 Template</button>
+            </div>
+
+            <div class="clause-list">
+                <div class="clause-item selected">
+                    <div class="clause-header">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="checkbox-input" id="clause1" checked>
+                            <label for="clause1" class="checkbox-custom"></label>
+                        </div>
+                        <div class="clause-content">
+                            <div class="clause-title">Jam Kerja</div>
+                            <div class="clause-description">Pekerjaan dilaksanakan sesuai jadwal yang telah ditentukan. Keterlambatan lebih dari 30 menit harus dikonfirmasi sebelumnya.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="clause-item selected">
+                    <div class="clause-header">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="checkbox-input" id="clause2" checked>
+                            <label for="clause2" class="checkbox-custom"></label>
+                        </div>
+                        <div class="clause-content">
+                            <div class="clause-title">Ruang Lingkup Pekerjaan</div>
+                            <div class="clause-description">Pekerjaan mencakup seluruh area yang disebutkan dalam deskripsi tugas. Penambahan pekerjaan di luar scope memerlukan persetujuan terpisah.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="clause-item selected">
+                    <div class="clause-header">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="checkbox-input" id="clause3" checked>
+                            <label for="clause3" class="checkbox-custom"></label>
+                        </div>
+                        <div class="clause-content">
+                            <div class="clause-title">Ketentuan Pembayaran</div>
+                            <div class="clause-description">Pembayaran akan ditahan oleh platform dan akan dicairkan ke pekerja maksimal 24 jam setelah pemberi kerja mengkonfirmasi penyelesaian tugas.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="clause-item selected">
+                    <div class="clause-header">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="checkbox-input" id="clause4" checked>
+                            <label for="clause4" class="checkbox-custom"></label>
+                        </div>
+                        <div class="clause-content">
+                            <div class="clause-title">Kebijakan Pembatalan</div>
+                            <div class="clause-description">Pembatalan oleh pemberi kerja 24 jam sebelum jadwal akan dikenakan biaya admin. Pembatalan oleh pekerja tanpa alasan kuat akan mempengaruhi rating.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="clause-item">
+                    <div class="clause-header">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="checkbox-input" id="clause5">
+                            <label for="clause5" class="checkbox-custom"></label>
+                        </div>
+                        <div class="clause-content">
+                            <div class="clause-title">Tanggung Jawab & Liabilitas</div>
+                            <div class="clause-description">Pekerja bertanggung jawab atas kerusakan yang disebabkan oleh kelalaian dalam bekerja. Pemberi kerja wajib menyediakan lingkungan kerja yang aman.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="clause-item">
+                    <div class="clause-header">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="checkbox-input" id="clause6">
+                            <label for="clause6" class="checkbox-custom"></label>
+                        </div>
+                        <div class="clause-content">
+                            <div class="clause-title">Peralatan & Bahan</div>
+                            <div class="clause-description">Pekerja wajib membawa peralatan kerja sendiri kecuali disebutkan lain. Bahan habis pakai disediakan oleh pemberi kerja atau dibebankan terpisah.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="clause-item">
+                    <div class="clause-header">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="checkbox-input" id="clause7">
+                            <label for="clause7" class="checkbox-custom"></label>
+                        </div>
+                        <div class="clause-content">
+                            <div class="clause-title">Kerahasiaan</div>
+                            <div class="clause-description">Pekerja tidak diperkenankan membagikan informasi pribadi atau kondisi properti pemberi kerja kepada pihak ketiga tanpa izin.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="custom-clause-section">
+                <div class="custom-clause-title">
+                    <span>✏️</span>
+                    <span>Klausul Tambahan (Opsional)</span>
+                </div>
+                <textarea class="custom-textarea" placeholder="Tambahkan ketentuan khusus lainnya yang ingin Anda masukkan..."></textarea>
+            </div>
+
+            <div class="preview-card">
+                <div class="preview-header">
+                    <div class="preview-title">Preview Perjanjian</div>
+                    <button class="preview-btn">
+                        <span>👁️</span>
+                        <span>Lihat PDF</span>
+                    </button>
+                </div>
+                <div class="preview-content">
+                    <h3>SURAT PERJANJIAN KERJA</h3>
+                    <p><strong>Nomor:</strong> KK/2025/10/00123</p>
+                    
+                    <p>Perjanjian ini dibuat pada tanggal 5 Oktober 2025 antara:</p>
+                    
+                    <p><strong>Pemberi Kerja:</strong><br>
+                    Nama: Ahmad Rizki<br>
+                    Email: ahmad.rizki@email.com</p>
+                    
+                    <p><strong>Pekerja:</strong><br>
+                    [Akan diisi setelah pekerja ditemukan]</p>
+                    
+                    <h3>Detail Pekerjaan</h3>
+                    <p><strong>Judul:</strong> Bersihkan Rumah 2 Lantai<br>
+                    <strong>Kategori:</strong> Kebersihan & Perawatan<br>
+                    <strong>Lokasi:</strong> Banda Aceh, Aceh<br>
+                    <strong>Jadwal:</strong> 6 Oktober 2025, 14:00 WIB<br>
+                    <strong>Budget:</strong> Rp 150.000</p>
+                    
+                    <h3>Ketentuan yang Disepakati</h3>
+                    <p>1. <strong>Jam Kerja</strong><br>
+                    Pekerjaan dilaksanakan sesuai jadwal yang telah ditentukan...</p>
+                    
+                    <p>2. <strong>Ruang Lingkup Pekerjaan</strong><br>
+                    Pekerjaan mencakup seluruh area yang disebutkan...</p>
+                    
+                    <p>3. <strong>Ketentuan Pembayaran</strong><br>
+                    Pembayaran akan ditahan oleh platform...</p>
+                    
+                    <p>4. <strong>Kebijakan Pembatalan</strong><br>
+                    Pembatalan oleh pemberi kerja 24 jam sebelum...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="submit-section">
+            <div class="button-group">
+                <button class="secondary-btn">Simpan Draft</button>
+                <button class="primary-btn">Lanjutkan →</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

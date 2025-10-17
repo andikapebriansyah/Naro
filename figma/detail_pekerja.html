@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KawanKerja - Profil Pekerja Kuli</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .phone-frame {
+            width: 440px;
+            height: 956px;
+            background: #F5F7FA;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            position: relative;
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            padding: 20px 24px 80px;
+        }
+
+        .header-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .nav-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+            color: white;
+        }
+
+        .container {
+            flex: 1;
+            overflow-y: auto;
+            margin-top: -60px;
+        }
+
+        .profile-card {
+            background: white;
+            margin: 0 24px 20px;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .profile-header {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .profile-info {
+            flex: 1;
+        }
+
+        .profile-name-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .profile-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: #2D3748;
+        }
+
+        .verified-badge {
+            font-size: 20px;
+        }
+
+        .profile-category {
+            font-size: 14px;
+            color: #718096;
+            margin-bottom: 12px;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2D3748;
+            margin-bottom: 2px;
+        }
+
+        .stat-value.rating {
+            color: #F59E0B;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #A0AEC0;
+            font-weight: 500;
+        }
+
+        .content-section {
+            background: white;
+            margin: 0 24px 16px;
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2D3748;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .about-text {
+            font-size: 14px;
+            color: #4A5568;
+            line-height: 1.7;
+        }
+
+        .work-history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .work-history-item {
+            padding: 16px;
+            background: #F7FAFC;
+            border-radius: 14px;
+            border: 1.5px solid #E2E8F0;
+        }
+
+        .work-date {
+            font-size: 11px;
+            color: #A0AEC0;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .work-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 4px;
+        }
+
+        .work-employer {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+
+        .work-desc {
+            font-size: 12px;
+            color: #4A5568;
+            line-height: 1.5;
+        }
+
+        .work-payment {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: #EBF4FF;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6B8EF9;
+            margin-top: 8px;
+        }
+
+        .availability-section {
+            background: #F7FAFC;
+            padding: 14px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        .availability-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #4A5568;
+            margin-bottom: 10px;
+        }
+
+        .availability-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .day-item {
+            text-align: center;
+            padding: 8px 4px;
+            border-radius: 8px;
+            background: white;
+            border: 1.5px solid #E2E8F0;
+        }
+
+        .day-item.available {
+            background: #D1FAE5;
+            border-color: #10B981;
+        }
+
+        .day-name {
+            font-size: 10px;
+            font-weight: 600;
+            color: #718096;
+            margin-bottom: 2px;
+        }
+
+        .day-item.available .day-name {
+            color: #059669;
+        }
+
+        .day-icon {
+            font-size: 16px;
+        }
+
+        .review-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .review-item {
+            padding-bottom: 16px;
+            border-bottom: 1px solid #F7FAFC;
+        }
+
+        .review-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .review-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .review-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #E2E8F0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: #718096;
+        }
+
+        .review-info {
+            flex: 1;
+        }
+
+        .review-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 2px;
+        }
+
+        .review-date {
+            font-size: 12px;
+            color: #A0AEC0;
+        }
+
+        .review-rating {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 14px;
+        }
+
+        .star-filled {
+            color: #F59E0B;
+        }
+
+        .review-text {
+            font-size: 13px;
+            color: #4A5568;
+            line-height: 1.6;
+        }
+
+        .action-buttons {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 16px 24px 24px;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .location-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: #F7FAFC;
+            border-radius: 10px;
+            margin-bottom: 14px;
+        }
+
+        .location-text {
+            flex: 1;
+            font-size: 13px;
+            color: #4A5568;
+        }
+
+        .primary-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(107, 142, 249, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .primary-btn:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="header">
+            <div class="header-nav">
+                <button class="nav-btn">←</button>
+                <button class="nav-btn">⋯</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="profile-card">
+                <div class="profile-header">
+                    <div class="profile-avatar">RH</div>
+                    <div class="profile-info">
+                        <div class="profile-name-row">
+                            <div class="profile-name">Rahmat Hidayat</div>
+                            <span class="verified-badge">✓</span>
+                        </div>
+                        <div class="profile-category">Pekerja Kuli Bangunan</div>
+                    </div>
+                </div>
+
+                <div class="profile-stats">
+                    <div class="stat-box">
+                        <div class="stat-value rating">4.9</div>
+                        <div class="stat-label">Rating</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">189</div>
+                        <div class="stat-label">Tugas Selesai</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value">142</div>
+                        <div class="stat-label">Ulasan</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <div class="section-title">
+                    <span>👤</span>
+                    <span>Tentang</span>
+                </div>
+                <p class="about-text">
+                    Berpengalaman sebagai pekerja kuli lebih dari 8 tahun. Terbiasa mengerjakan berbagai pekerjaan berat seperti bangunan, angkut barang, bongkar muat, dan pekerjaan fisik lainnya. Pekerja keras, dapat diandalkan, dan selalu menyelesaikan tugas dengan baik.
+                </p>
+            </div>
+
+            <div class="content-section">
+                <div class="section-title">
+                    <span>💼</span>
+                    <span>Riwayat Pekerjaan</span>
+                </div>
+                <div class="work-history-list">
+                    <div class="work-history-item">
+                        <div class="work-date">2 HARI YANG LALU</div>
+                        <div class="work-title">Bongkar Muat Material</div>
+                        <div class="work-employer">Toko Bangunan Jaya</div>
+                        <div class="work-desc">Membantu bongkar muat semen dan bata dari truk ke gudang. Bekerja 6 jam.</div>
+                        <div class="work-payment">💰 Upah: Rp 180.000</div>
+                    </div>
+                    
+                    <div class="work-history-item">
+                        <div class="work-date">1 MINGGU YANG LALU</div>
+                        <div class="work-title">Angkut Material ke Lantai 2</div>
+                        <div class="work-employer">Pak Ahmad - Renovasi Rumah</div>
+                        <div class="work-desc">Mengangkut pasir, semen, dan batu bata ke lantai 2 untuk proyek renovasi.</div>
+                        <div class="work-payment">💰 Upah: Rp 250.000</div>
+                    </div>
+                    
+                    <div class="work-history-item">
+                        <div class="work-date">2 MINGGU YANG LALU</div>
+                        <div class="work-title">Bantu Pindahan Rumah</div>
+                        <div class="work-employer">Ibu Siti - Pindahan</div>
+                        <div class="work-desc">Membantu pindahan furniture dan barang rumah tangga. Termasuk naik turun tangga.</div>
+                        <div class="work-payment">💰 Upah: Rp 200.000</div>
+                    </div>
+                    
+                    <div class="work-history-item">
+                        <div class="work-date">3 MINGGU YANG LALU</div>
+                        <div class="work-title">Kerja Bangunan Rumah Baru</div>
+                        <div class="work-employer">Kontraktor Bpk Yusuf</div>
+                        <div class="work-desc">Membantu kontraktor dalam pengecoran, angkut material, dan pekerjaan pembangunan rumah selama 3 hari.</div>
+                        <div class="work-payment">💰 Upah: Rp 750.000</div>
+                    </div>
+                    
+                    <div class="work-history-item">
+                        <div class="work-date">1 BULAN YANG LALU</div>
+                        <div class="work-title">Bongkar Bangunan Lama</div>
+                        <div class="work-employer">Pak Rizki - Renovasi</div>
+                        <div class="work-desc">Membongkar dinding dan angkut puing-puing bangunan lama untuk persiapan renovasi.</div>
+                        <div class="work-payment">💰 Upah: Rp 300.000</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <div class="section-title">
+                    <span>📅</span>
+                    <span>Ketersediaan</span>
+                </div>
+                <div class="availability-section">
+                    <div class="availability-title">Jadwal Minggu Ini</div>
+                    <div class="availability-grid">
+                        <div class="day-item available">
+                            <div class="day-name">Sen</div>
+                            <div class="day-icon">✓</div>
+                        </div>
+                        <div class="day-item available">
+                            <div class="day-name">Sel</div>
+                            <div class="day-icon">✓</div>
+                        </div>
+                        <div class="day-item">
+                            <div class="day-name">Rab</div>
+                            <div class="day-icon">—</div>
+                        </div>
+                        <div class="day-item available">
+                            <div class="day-name">Kam</div>
+                            <div class="day-icon">✓</div>
+                        </div>
+                        <div class="day-item available">
+                            <div class="day-name">Jum</div>
+                            <div class="day-icon">✓</div>
+                        </div>
+                        <div class="day-item available">
+                            <div class="day-name">Sab</div>
+                            <div class="day-icon">✓</div>
+                        </div>
+                        <div class="day-item">
+                            <div class="day-name">Min</div>
+                            <div class="day-icon">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <div class="section-title">
+                    <span>⭐</span>
+                    <span>Ulasan (142)</span>
+                </div>
+                <div class="review-list">
+                    <div class="review-item">
+                        <div class="review-header">
+                            <div class="review-avatar">BT</div>
+                            <div class="review-info">
+                                <div class="review-name">Budi Tanjung</div>
+                                <div class="review-date">3 hari yang lalu</div>
+                            </div>
+                            <div class="review-rating">
+                                <span class="star-filled">★★★★★</span>
+                            </div>
+                        </div>
+                        <p class="review-text">
+                            Pekerja sangat baik! Bantu angkat barang berat ke lantai 2 dengan cepat dan hati-hati. Orangnya rajin dan tidak banyak istirahat. Recommended!
+                        </p>
+                    </div>
+
+                    <div class="review-item">
+                        <div class="review-header">
+                            <div class="review-avatar">SR</div>
+                            <div class="review-info">
+                                <div class="review-name">Siti Rahmah</div>
+                                <div class="review-date">1 minggu yang lalu</div>
+                            </div>
+                            <div class="review-rating">
+                                <span class="star-filled">★★★★★</span>
+                            </div>
+                        </div>
+                        <p class="review-text">
+                            Tepat waktu dan kerja cepat. Bantu bongkar material bangunan dengan efisien. Pasti pakai lagi kalau ada proyek selanjutnya.
+                        </p>
+                    </div>
+
+                    <div class="review-item">
+                        <div class="review-header">
+                            <div class="review-avatar">AK</div>
+                            <div class="review-info">
+                                <div class="review-name">Ahmad Karim</div>
+                                <div class="review-date">2 minggu yang lalu</div>
+                            </div>
+                            <div class="review-rating">
+                                <span class="star-filled">★★★★</span>
+                            </div>
+                        </div>
+                        <p class="review-text">
+                            Kerja bagus, cuma agak telat 15 menit. Tapi hasil kerjanya memuaskan dan orangnya ramah.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <div class="location-info">
+                <span>📍</span>
+                <span class="location-text">Jarak dari lokasi Anda: <strong>2.1 km</strong></span>
+            </div>
+            <button class="primary-btn">Pilih Pekerja Ini</button>
+        </div>
+    </div>
+</body>
+</html>

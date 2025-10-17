@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail Pekerjaan - KawanKerja</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .phone-frame {
+            width: 440px;
+            height: 956px;
+            background: #F5F7FA;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: white;
+            padding: 16px 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            background: #F7FAFC;
+            border: none;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .header-title {
+            flex: 1;
+            font-size: 16px;
+            font-weight: 700;
+            color: #2D3748;
+        }
+
+        .more-btn {
+            width: 40px;
+            height: 40px;
+            background: #F7FAFC;
+            border: none;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+            color: #D97706;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .job-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #2D3748;
+            margin-bottom: 16px;
+            line-height: 1.3;
+        }
+
+        .poster-card {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .poster-label {
+            font-size: 11px;
+            color: #718096;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .poster-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .poster-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .poster-details {
+            flex: 1;
+        }
+
+        .poster-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .verified {
+            color: #6B8EF9;
+            font-size: 14px;
+        }
+
+        .poster-stats {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .contact-btn {
+            padding: 8px 16px;
+            background: #F7FAFC;
+            border: 2px solid #E2E8F0;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6B8EF9;
+            cursor: pointer;
+        }
+
+        .info-section {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #2D3748;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-content {
+            font-size: 13px;
+            color: #4A5568;
+            line-height: 1.6;
+        }
+
+        .info-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .info-icon {
+            width: 36px;
+            height: 36px;
+            background: #F7FAFC;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .info-text {
+            flex: 1;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #718096;
+            margin-bottom: 2px;
+        }
+
+        .info-value {
+            font-size: 13px;
+            color: #2D3748;
+            font-weight: 600;
+        }
+
+        .price-card {
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 16px;
+            color: white;
+            box-shadow: 0 8px 24px rgba(107, 142, 249, 0.35);
+        }
+
+        .price-label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .price-amount {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .price-breakdown {
+            font-size: 11px;
+            opacity: 0.85;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .agreement-section {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .agreement-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .agreement-box {
+            background: #F7FAFC;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .agreement-text {
+            font-size: 11px;
+            color: #4A5568;
+            line-height: 1.7;
+            margin-bottom: 10px;
+        }
+
+        .agreement-points {
+            font-size: 11px;
+            color: #4A5568;
+            line-height: 1.8;
+            padding-left: 12px;
+        }
+
+        .view-full {
+            font-size: 12px;
+            color: #6B8EF9;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            padding: 8px;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 14px;
+            background: #F7FAFC;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        .checkbox-container input {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            margin-top: 2px;
+        }
+
+        .checkbox-container label {
+            flex: 1;
+            font-size: 12px;
+            color: #2D3748;
+            line-height: 1.5;
+            cursor: pointer;
+        }
+
+        .photos-section {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .photos-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .photo-item {
+            aspect-ratio: 1;
+            background: linear-gradient(135deg, #E2E8F0 0%, #CBD5E0 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            padding: 16px 20px;
+            background: white;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary {
+            background: #F7FAFC;
+            color: #EF4444;
+            border: 2px solid #FEE2E2;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6B8EF9 0%, #5A7DE8 100%);
+            color: white;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .category-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .tag {
+            padding: 5px 10px;
+            background: #EBF4FF;
+            color: #6B8EF9;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <div class="header">
+            <button class="back-btn">←</button>
+            <div class="header-title">Detail Pekerjaan</div>
+            <button class="more-btn">⋮</button>
+        </div>
+
+        <div class="container">
+            <div class="status-badge">Ditawari Langsung</div>
+
+            <h1 class="job-title">Service AC Split + Cuci 2 Unit AC</h1>
+
+            <div class="poster-card">
+                <div class="poster-label">Pemberi Kerja</div>
+                <div class="poster-info">
+                    <div class="poster-avatar">BS</div>
+                    <div class="poster-details">
+                        <div class="poster-name">
+                            Budi Santoso
+                            <span class="verified">✓</span>
+                        </div>
+                        <div class="poster-stats">⭐ 4.8 • 12 pekerjaan • Member sejak 2024</div>
+                    </div>
+                    <button class="contact-btn">Chat</button>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="section-title">📋 Deskripsi Pekerjaan</div>
+                <div class="section-content">
+                    Membutuhkan teknisi AC untuk service rutin 2 unit AC split yang ada di rumah. AC terakhir di-service 6 bulan lalu. Perlu pembersihan filter, pengecekan freon, dan pembersihan menyeluruh untuk kedua unit.
+                    <div class="category-tags">
+                        <div class="tag">Teknisi AC</div>
+                        <div class="tag">Pembersihan</div>
+                        <div class="tag">Service Rutin</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="section-title">📍 Detail Lokasi & Jadwal</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-icon">📍</div>
+                        <div class="info-text">
+                            <div class="info-label">Lokasi</div>
+                            <div class="info-value">Jl. T. Nyak Arief No. 45, Ulee Kareng, Banda Aceh (2.3 km)</div>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-icon">📅</div>
+                        <div class="info-text">
+                            <div class="info-label">Tanggal & Waktu</div>
+                            <div class="info-value">Senin, 6 Oktober 2025 • 09:00 - 13:00 WIB</div>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-icon">⏱️</div>
+                        <div class="info-text">
+                            <div class="info-label">Estimasi Durasi</div>
+                            <div class="info-value">3-4 jam pengerjaan</div>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-icon">💼</div>
+                        <div class="info-text">
+                            <div class="info-label">Tipe Pembayaran</div>
+                            <div class="info-value">Fixed Price</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="photos-section">
+                <div class="section-title">📸 Foto Referensi</div>
+                <div class="photos-grid">
+                    <div class="photo-item">🖼️</div>
+                    <div class="photo-item">🖼️</div>
+                    <div class="photo-item">🖼️</div>
+                </div>
+            </div>
+
+            <div class="price-card">
+                <div class="price-label">Total Pembayaran</div>
+                <div class="price-amount">Rp 250.000</div>
+                <div class="price-breakdown">
+                    Biaya pekerjaan: Rp 232.500<br>
+                    Biaya platform (7.5%): Rp 17.500
+                </div>
+            </div>
+
+            <div class="agreement-section">
+                <div class="agreement-header">
+                    <div class="section-title">📄 Surat Perjanjian Kerja</div>
+                </div>
+                <div class="agreement-box">
+                    <div class="agreement-text">
+                        <strong>SURAT PERJANJIAN KERJA</strong><br><br>
+                        Pada hari ini, yang bertanda tangan di bawah ini:
+                    </div>
+                    <div class="agreement-text">
+                        <strong>PIHAK PERTAMA (Pemberi Kerja)</strong><br>
+                        Nama: Budi Santoso<br>
+                        Alamat: Jl. T. Nyak Arief No. 45, Ulee Kareng, Banda Aceh<br>
+                        No. KTP: 1171012345678901
+                    </div>
+                    <div class="agreement-text">
+                        <strong>PIHAK KEDUA (Pekerja/Tasker)</strong><br>
+                        Nama: Ahmad Rizki<br>
+                        Alamat: Jl. Sukarno Hatta No. 12, Banda Aceh<br>
+                        No. KTP: 1171019876543210
+                    </div>
+                    <div class="agreement-text">
+                        Kedua belah pihak sepakat untuk mengikatkan diri dalam perjanjian kerja dengan ketentuan sebagai berikut:
+                    </div>
+                    <div class="agreement-points">
+                        <strong>Pasal 1 - Ruang Lingkup Pekerjaan</strong><br>
+                        • Pihak Kedua akan melakukan service dan pembersihan 2 unit AC split<br>
+                        • Pekerjaan meliputi: pembersihan filter, pengecekan freon, pembersihan evaporator dan kondensor<br>
+                        • Pihak Kedua wajib membawa peralatan kerja sendiri<br><br>
+
+                        <strong>Pasal 2 - Waktu Pelaksanaan</strong><br>
+                        • Tanggal: Senin, 6 Oktober 2025<br>
+                        • Waktu: 09:00 - 13:00 WIB<br>
+                        • Estimasi durasi: 3-4 jam<br><br>
+
+                        <strong>Pasal 3 - Pembayaran</strong><br>
+                        • Total pembayaran: Rp 250.000<br>
+                        • Pembayaran dilakukan melalui sistem escrow KawanKerja<br>
+                        • Dana akan diteruskan ke Pihak Kedua setelah Pihak Pertama mengkonfirmasi pekerjaan selesai<br>
+                        • Pihak Kedua akan menerima Rp 232.500 (setelah dipotong biaya platform 7.5%)<br><br>
+
+                        <strong>Pasal 4 - Ketentuan Umum</strong><br>
+                        • Pihak Kedua bertanggung jawab penuh atas kualitas pekerjaan<br>
+                        • Pihak Kedua wajib menjaga kebersihan area kerja<br>
+                        • Jika terjadi kerusakan akibat kelalaian Pihak Kedua, menjadi tanggung jawab Pihak Kedua<br>
+                        • Garansi pekerjaan: 7 hari setelah selesai<br><br>
+
+                        <strong>Pasal 5 - Pembatalan</strong><br>
+                        • Pembatalan maksimal 2 jam sebelum waktu mulai<br>
+                        • Pembatalan sepihak akan dikenakan sanksi sesuai ketentuan platform<br>
+                        • Force majeure dikecualikan dari ketentuan pembatalan<br><br>
+
+                        <strong>Pasal 6 - Penyelesaian Sengketa</strong><br>
+                        • Jika terjadi perselisihan, akan diselesaikan secara musyawarah<br>
+                        • Jika tidak tercapai kesepakatan, akan diselesaikan melalui sistem dispute platform KawanKerja<br>
+                    </div>
+                </div>
+                <div class="view-full">Lihat Perjanjian Lengkap</div>
+            </div>
+
+            <div class="checkbox-container">
+                <input type="checkbox" id="agree">
+                <label for="agree">Saya telah membaca dan memahami seluruh isi surat perjanjian di atas, dan dengan ini menyetujui untuk terikat dengan ketentuan yang tercantum.</label>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-secondary">Tolak</button>
+            <button class="btn btn-primary">Terima Pekerjaan</button>
+        </div>
+    </div>
+</body>
+</html>

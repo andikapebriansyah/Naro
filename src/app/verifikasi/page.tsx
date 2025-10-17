@@ -380,7 +380,7 @@ export default function VerificationPage() {
                   type="submit"
                   className="w-full"
                   size="lg"
-                  disabled={!ktpImage || !selfieImage || isSubmitting || ktpFileError || selfieFileError}
+                  disabled={!ktpImage || !selfieImage || isSubmitting || !!ktpFileError || !!selfieFileError}
                 >
                   {isSubmitting ? (
                     <>

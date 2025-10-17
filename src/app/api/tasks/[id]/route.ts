@@ -14,9 +14,9 @@ export async function GET(
     await dbConnect();
 
     const task = await Task.findById(params.id)
-      .populate('posterId', 'name email image rating isVerified')
+      .populate('posterId', 'name email phone image rating isVerified')
       .populate('applicants.userId', 'name email image rating isVerified')
-      .populate('assignedTo', 'name email image rating isVerified');
+      .populate('assignedTo', 'name email phone image rating isVerified');
 
     if (!task) {
       return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
@@ -90,9 +90,14 @@ export async function PUT(
       const description = formData.get('description') as string;
       const category = formData.get('category') as string;
       const location = formData.get('location') as string;
-      const scheduledDate = formData.get('scheduledDate') as string;
-      const scheduledTime = formData.get('scheduledTime') as string;
-      const estimatedDuration = formData.get('estimatedDuration') as string;
+      const locationCoordinates = formData.get('locationCoordinates') as string;
+      
+      // PERUBAHAN UTAMA: Ambil field yang benar dari form
+      const startDate = formData.get('startDate') as string;
+      const startTime = formData.get('startTime') as string;
+      const endDate = formData.get('endDate') as string;
+      const endTime = formData.get('endTime') as string;
+      
       const budget = formData.get('budget') as string;
       const pricingType = formData.get('pricingType') as string;
       const searchMethod = formData.get('searchMethod') as string;
@@ -102,13 +107,27 @@ export async function PUT(
         description,
         category,
         location,
-        scheduledDate: new Date(scheduledDate),
-        scheduledTime,
-        estimatedDuration,
+        // Parse locationCoordinates jika ada
+        ...(locationCoordinates && { locationCoordinates: JSON.parse(locationCoordinates) }),
+        // Set startDate, startTime, endDate, endTime
+        startDate: startDate ? new Date(startDate) : undefined,
+        startTime,
+        endDate: endDate ? new Date(endDate) : undefined,
+        endTime,
+        // Set scheduledDate dan scheduledTime dari startDate dan startTime untuk backward compatibility
+        scheduledDate: startDate ? new Date(startDate) : undefined,
+        scheduledTime: startTime,
         budget: parseFloat(budget),
         pricingType: pricingType || 'fixed',
-        searchMethod: searchMethod || 'publish',
+        searchMethod: searchMethod || 'publication',
       };
+
+      // Remove undefined values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        }
+      });
 
       // Handle photo uploads if any
       const existingPhotos = formData.getAll('existingPhotos') as string[];
@@ -137,6 +156,12 @@ export async function PUT(
       updateData = body;
       
       // Convert string dates to Date objects if needed
+      if (updateData.startDate && typeof updateData.startDate === 'string') {
+        updateData.startDate = new Date(updateData.startDate);
+      }
+      if (updateData.endDate && typeof updateData.endDate === 'string') {
+        updateData.endDate = new Date(updateData.endDate);
+      }
       if (updateData.scheduledDate && typeof updateData.scheduledDate === 'string') {
         updateData.scheduledDate = new Date(updateData.scheduledDate);
       }
@@ -160,13 +185,15 @@ export async function PUT(
       );
     }
 
+    console.log('Updating task with data:', updateData); // Debug log
+
     // Update the task
     const updatedTask = await Task.findByIdAndUpdate(
       params.id,
       updateData,
-      { new: true }
-    ).populate('posterId', 'name email image rating isVerified')
-     .populate('assignedTo', 'name email image rating isVerified');
+      { new: true, runValidators: true }
+    ).populate('posterId', 'name email phone image rating isVerified')
+     .populate('assignedTo', 'name email phone image rating isVerified');
 
     return NextResponse.json({
       success: true,

@@ -1,3 +1,4 @@
+// src/app/admin/page.tsx - UPDATED VERSION
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -65,15 +66,23 @@ export default function AdminDashboardPage() {
       const verificationsRes = await fetch('/api/admin/verifications?status=all');
       const verificationsData = await verificationsRes.json();
       
+      // ✅ Fetch reports
+      const reportsRes = await fetch('/api/admin/reports?status=all');
+      const reportsData = await reportsRes.json();
+      
       if (verificationsData.success) {
         const verifications = verificationsData.data;
+        const reports = reportsData.success ? reportsData.data : [];
+        
         setStats({
           totalUsers: verifications.length,
           totalTasks: 0, // TODO: Implement when tasks API is ready
           pendingVerifications: verifications.filter(
             (v: any) => v.ktpVerification?.status === 'pending'
           ).length,
-          pendingReports: 0, // TODO: Implement when reports API is ready
+          pendingReports: reports.filter(
+            (r: any) => r.status === 'pending'
+          ).length,
           verifiedUsers: verifications.filter(
             (v: any) => v.ktpVerification?.status === 'approved'
           ).length,
@@ -81,6 +90,7 @@ export default function AdminDashboardPage() {
         });
       }
     } catch (error) {
+      console.error('Fetch stats error:', error);
       toast.error('Terjadi kesalahan saat memuat data');
     } finally {
       setIsLoading(false);
@@ -274,7 +284,7 @@ export default function AdminDashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Reports */}
+            {/* Reports - ✅ UPDATED */}
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center space-x-3">
@@ -297,10 +307,13 @@ export default function AdminDashboardPage() {
                       {stats.pendingReports} laporan
                     </span>
                   </div>
-                  <Button className="w-full" variant="outline" disabled>
-                    Segera Hadir
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
+                  {/* ✅ UPDATED: Remove disabled, add proper link */}
+                  <Link href="/admin/reports">
+                    <Button className="w-full bg-red-600 hover:bg-red-700">
+                      Lihat Laporan
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>

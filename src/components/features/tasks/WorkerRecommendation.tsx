@@ -451,7 +451,7 @@ export function WorkerRecommendation({ jobData, onWorkerSelect }: WorkerRecommen
                       className="w-full sm:flex-1 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-sm"
                     >
                       <Target className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                      <span className="hidden sm:inline">🚀 Pilih & Lanjutkan</span>
+                      <span className="hidden sm:inline">🚀 Pilih & Buat Kontrak</span>
                       <span className="sm:hidden">🚀 Pilih</span>
                     </Button>
                     <Button

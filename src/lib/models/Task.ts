@@ -142,7 +142,7 @@ const taskSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'open', 'pending', 'accepted', 'active', 'completed', 'rejected', 'cancelled', 'disputed'],
+      enum: ['draft', 'open', 'pending', 'accepted', 'active', 'completed_worker', 'completed', 'rejected', 'cancelled', 'disputed'],
       default: 'draft',
     },
     photos: [String],
@@ -158,6 +158,25 @@ const taskSchema = new Schema(
     applicants: [taskApplicantSchema],
     agreement: taskAgreementSchema,
     payment: taskPaymentSchema,
+    // Completion tracking
+    completedAt: Date,
+    completedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    workerCompletedAt: Date,
+    employerCompletedAt: Date,
+    employerApprovedAt: Date,
+    approvedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    rejectedAt: Date,
+    paymentProcessed: {
+      type: Boolean,
+      default: false,
+    },
+    paidAt: Date,
     // Payment fields for simple implementation
     paymentId: String,
     paymentStatus: {

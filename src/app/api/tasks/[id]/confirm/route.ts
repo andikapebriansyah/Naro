@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import Task from '@/lib/models/Task';
 import User from '@/lib/models/User';
+import { createNotification } from '@/lib/notifications';
 
 export async function POST(
   req: NextRequest,
@@ -60,7 +61,7 @@ export async function POST(
     }
 
     // If direct search, verify worker exists and assign
-    if (task.searchMethod === 'direct' && workerId) {
+    if (task.searchMethod === 'find_worker' && workerId) {
       const worker = await User.findById(workerId);
       
       if (!worker) {
@@ -96,8 +97,17 @@ export async function POST(
 
     await task.save();
 
-    // TODO: Send notification to worker if direct search
-    // TODO: Send notification to all workers if publish
+    // ✅ Send notification to worker if find_worker search
+    if (task.searchMethod === 'find_worker' && workerId) {
+      await createNotification({
+        userId: workerId,
+        title: 'Tawaran Pekerjaan Baru! 📋',
+        message: `Anda mendapat tawaran pekerjaan "${task.title}" dari sistem rekomendasi AI. Lihat detail dan terima pekerjaan.`,
+        type: 'task_assigned',
+        relatedId: task._id.toString(),
+        relatedModel: 'Task',
+      });
+    }
 
     return NextResponse.json({
       success: true,

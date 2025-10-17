@@ -86,6 +86,10 @@ const userSchema = new Schema(
       type: Number,
       default: 0,
     },
+    balance: {
+      type: Number,
+      default: 0,
+    },
     // Profile fields for taskers
     about: String,
     workCategories: [{

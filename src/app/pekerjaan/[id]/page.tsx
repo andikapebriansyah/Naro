@@ -90,10 +90,10 @@ export default function JobDetailPage() {
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Lamaran berhasil dikirim! Pekerjaan ini sekarang ada di Dashboard > Pekerjaan Berlangsung');
+        toast.success('Lamaran berhasil dikirim!');
         fetchJobDetail();
         setApplicationMessage('');
-        
+
         setTimeout(() => {
           router.push('/dashboard');
         }, 2000);
@@ -313,19 +313,79 @@ export default function JobDetailPage() {
               </div>
 
               {/* Job Meta */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <MapPin className="h-5 w-5 text-gray-600" />
+              <div className="space-y-3">
+                {/* Location */}
+                <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
+                  <MapPin className="h-5 w-5 text-gray-600 flex-shrink-0" />
                   <span className="text-sm text-gray-700">{job.location}</span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm text-gray-700">{formatDate(job.scheduledDate)}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Clock className="h-5 w-5 text-gray-600" />
-                  <span className="text-sm text-gray-700">{job.scheduledTime} WIB</span>
-                </div>
+
+                {/* Complete Schedule Info */}
+                {job.startDate && job.endDate ? (
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-blue-600" />
+                      Jadwal Pekerjaan
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-xs text-gray-500 mb-1">Tanggal Mulai</div>
+                        <div className="font-semibold text-gray-900">
+                          {new Date(job.startDate).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </div>
+                        <div className="text-sm text-primary-600 font-medium mt-1 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {job.startTime || '-'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500 mb-1">Tanggal Selesai</div>
+                        <div className="font-semibold text-gray-900">
+                          {new Date(job.endDate).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </div>
+                        <div className="text-sm text-primary-600 font-medium mt-1 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {job.endTime || '-'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : job.scheduledDate ? (
+                  // Fallback to old format if new fields not available
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="h-5 w-5 text-gray-600" />
+                      <div>
+                        <div className="text-sm text-gray-700">
+                          {new Date(job.scheduledDate).toLocaleDateString('id-ID', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </div>
+                        {job.scheduledTime && (
+                          <div className="text-xs text-gray-600 flex items-center gap-1 mt-1">
+                            <Clock className="h-3 w-3" />
+                            {job.scheduledTime} WIB
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-3 text-center text-sm text-gray-600">
+                    Jadwal akan ditentukan bersama
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -400,13 +460,12 @@ export default function JobDetailPage() {
                           {new Date(applicant.appliedAt).toLocaleDateString('id-ID')}
                         </div>
                       </div>
-                      <div className={`text-xs px-2 py-1 rounded ${
-                        applicant.status === 'accepted' ? 'bg-green-100 text-green-700' :
-                        applicant.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>
+                      <div className={`text-xs px-2 py-1 rounded ${applicant.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                          applicant.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                        }`}>
                         {applicant.status === 'accepted' ? 'Diterima' :
-                         applicant.status === 'rejected' ? 'Ditolak' : 'Pending'}
+                          applicant.status === 'rejected' ? 'Ditolak' : 'Pending'}
                       </div>
                     </div>
                   ))}
@@ -448,7 +507,7 @@ export default function JobDetailPage() {
                         disabled={!canAccessFeatures}
                       />
                     </div>
-                    
+
                     {!canAccessFeatures && (
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 text-yellow-700 flex-shrink-0 mt-0.5" />
@@ -497,7 +556,7 @@ export default function JobDetailPage() {
                       Anda telah dipilih untuk pekerjaan ini!
                     </h3>
                     <p className="text-green-700 mb-4">
-                      Pemberi kerja telah menawarkan pekerjaan ini langsung kepada Anda. 
+                      Pemberi kerja telah menawarkan pekerjaan ini langsung kepada Anda.
                       Silakan tinjau surat perjanjian di bawah ini.
                     </p>
                   </div>
@@ -518,7 +577,7 @@ export default function JobDetailPage() {
                         <h4 className="font-bold text-lg">SURAT PERJANJIAN KERJA</h4>
                         <p className="text-gray-600">Nomor: NARO/2025/{job._id.slice(-6)}</p>
                       </div>
-                      
+
                       <div className="border-t pt-3">
                         <p className="mb-2">
                           Perjanjian ini dibuat pada tanggal{' '}
@@ -571,7 +630,7 @@ export default function JobDetailPage() {
                     >
                       📄 Unduh Surat Perjanjian Lengkap (PDF)
                     </Button>
-                    
+
                     {!canAccessFeatures && (
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 text-yellow-700 flex-shrink-0 mt-0.5" />
@@ -580,7 +639,7 @@ export default function JobDetailPage() {
                         </div>
                       </div>
                     )}
-                    
+
                     <div className="flex gap-3">
                       <Button
                         variant="outline"

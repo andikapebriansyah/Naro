@@ -212,7 +212,7 @@ export default function CreateTaskPage() {
   const handleWorkerSelect = (worker: any) => {
     setSelectedWorker(worker);
     // Keep find_worker as search method when worker is selected from AI recommendation
-    toast.success(`Pekerja rekomendasi AI: ${worker.name} telah dipilih!`);
+    toast.success(`🤖 ${worker.name} dipilih! Akan langsung ke halaman kontrak setelah tugas disimpan.`);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -271,12 +271,28 @@ export default function CreateTaskPage() {
         localStorage.removeItem('taskDraft');
         
         // Arahkan berdasarkan metode pencarian yang dipilih
-        if (formData.searchMethod === 'find_worker') {
-          // Jika pilih "Cari Pekerja", arahkan ke halaman cari pekerja
-          const url = selectedWorker 
-            ? `/tugas/${taskId}/cari-pekerja?workerId=${selectedWorker._id}`
-            : `/tugas/${taskId}/cari-pekerja`;
-          router.push(url);
+        if (selectedWorker) {
+          // Jika pekerja sudah dipilih dari rekomendasi AI, langsung ke perjanjian
+          // Update task dengan worker yang dipilih terlebih dahulu
+          const updateResponse = await fetch(`/api/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assignedTo: selectedWorker._id,
+              status: 'pending',
+              searchMethod: 'find_worker' // Pastikan method sesuai
+            }),
+          });
+
+          if (updateResponse.ok) {
+            toast.success(`🤖 Pekerja AI ${selectedWorker.name} berhasil ditugaskan!`);
+            router.push(`/tugas/${taskId}/perjanjian`);
+          } else {
+            toast.error('Gagal menugaskan pekerja');
+          }
+        } else if (formData.searchMethod === 'find_worker') {
+          // Jika pilih "Cari Pekerja" tanpa rekomendasi AI, arahkan ke halaman cari pekerja
+          router.push(`/tugas/${taskId}/cari-pekerja`);
         } else {
           // Jika pilih "Publikasikan", langsung ke perjanjian
           router.push(`/tugas/${taskId}/perjanjian`);
@@ -703,17 +719,21 @@ export default function CreateTaskPage() {
                     />
                     
                     {selectedWorker && (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
                         <div className="flex items-center space-x-2 mb-2">
-                          <span className="text-green-600">✅</span>
-                          <span className="font-medium text-green-900">
-                            Pekerja Terpilih: {selectedWorker.name}
+                          <span className="text-blue-600">🤖</span>
+                          <span className="font-medium text-blue-900">
+                            Pekerja AI Terpilih: {selectedWorker.name}
                           </span>
                         </div>
-                        <p className="text-sm text-green-700">
-                          Tugas akan langsung diarahkan ke {selectedWorker.name} setelah dibuat.
-                          Anda bisa mengubah pilihan dengan memilih pekerja lain dari rekomendasi di atas.
+                        <p className="text-sm text-blue-700">
+                          Tugas akan langsung ditugaskan ke {selectedWorker.name} dan diarahkan ke halaman kontrak.
+                          Anda bisa mengubah pilihan dengan memilih pekerja lain dari rekomendasi AI di atas.
                         </p>
+                        <div className="mt-2 flex items-center space-x-1 text-xs text-blue-600">
+                          <span>🎯</span>
+                          <span>Sistem AI telah menganalisis dan merekomendasikan pekerja terbaik</span>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -731,13 +751,17 @@ export default function CreateTaskPage() {
                   <Button type="submit" className="flex-1" disabled={isSubmitting}>
                     {isSubmitting 
                       ? 'Menyimpan...' 
-                      : isEditMode
-                        ? (formData.searchMethod === 'find_worker' 
-                            ? 'Update & Cari Pekerja →' 
-                            : 'Update & Publikasikan →')
-                        : (formData.searchMethod === 'find_worker' 
-                            ? 'Buat & Cari Pekerja →' 
-                            : 'Buat & Publikasikan →')
+                      : selectedWorker
+                        ? (isEditMode 
+                            ? `🤖 Update & Tugaskan ke ${selectedWorker.name} →`
+                            : `🤖 Buat & Tugaskan ke ${selectedWorker.name} →`)
+                        : isEditMode
+                          ? (formData.searchMethod === 'find_worker' 
+                              ? 'Update & Cari Pekerja →' 
+                              : 'Update & Publikasikan →')
+                          : (formData.searchMethod === 'find_worker' 
+                              ? 'Buat & Cari Pekerja →' 
+                              : 'Buat & Publikasikan →')
                     }
                   </Button>
                 </div>

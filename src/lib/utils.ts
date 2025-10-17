@@ -14,78 +14,22 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-export function formatDate(date: Date | string | any): string {
-  try {
-    if (!date) return 'Tanggal tidak valid';
-    
-    let actualDate: Date;
-    
-    // Handle MongoDB date format { $date: { $numberLong: "..." } }
-    if (typeof date === 'object' && '$date' in date) {
-      const timestamp = parseInt(date.$date.$numberLong || date.$date);
-      actualDate = new Date(timestamp);
-    } 
-    // Handle Date object
-    else if (typeof date === 'object' && date instanceof Date) {
-      actualDate = date;
-    }
-    // Handle ISO string or other string formats
-    else if (typeof date === 'string') {
-      actualDate = new Date(date);
-    }
-    // Handle number (timestamp)
-    else if (typeof date === 'number') {
-      actualDate = new Date(date);
-    }
-    else {
-      return 'Tanggal tidak valid';
-    }
-
-    if (isNaN(actualDate.getTime())) {
-      console.warn('Invalid date after conversion:', date);
-      return 'Tanggal tidak valid';
-    }
-
-    return new Intl.DateTimeFormat('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }).format(actualDate);
-  } catch (error) {
-    console.error('Error formatting date:', error, 'Input:', date);
-    return 'Tanggal tidak valid';
-  }
+export function formatDate(date: Date | string): string {
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(date));
 }
 
-export function formatDateTime(date: Date | string | any): string {
-  try {
-    let actualDate: Date;
-    
-    // Handle MongoDB date format { $date: { $numberLong: "..." } }
-    if (date && typeof date === 'object' && '$date' in date) {
-      const timestamp = parseInt(date.$date.$numberLong || date.$date);
-      actualDate = new Date(timestamp);
-    } else if (date && typeof date === 'object' && 'getTime' in date) {
-      actualDate = new Date(date);
-    } else {
-      actualDate = new Date(date);
-    }
-
-    if (isNaN(actualDate.getTime())) {
-      return 'Tanggal tidak valid';
-    }
-
-    return new Intl.DateTimeFormat('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(actualDate);
-  } catch (error) {
-    console.error('Error formatting datetime:', error, 'Input:', date);
-    return 'Tanggal tidak valid';
-  }
+export function formatDateTime(date: Date | string): string {
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(date));
 }
 
 export function formatRelativeTime(date: Date | string): string {
@@ -160,161 +104,4 @@ export function getStatusColor(status: string): string {
     disputed: 'bg-orange-100 text-orange-800',
   };
   return colors[status] || 'bg-gray-100 text-gray-800';
-}
-
-/**
- * Hitung progress pekerjaan berdasarkan waktu
- * @param startDate - Tanggal mulai
- * @param startTime - Waktu mulai (format HH:mm)
- * @param endDate - Tanggal selesai
- * @param endTime - Waktu selesai (format HH:mm)
- * @returns Object dengan percentage (0-100), remaining time, dan status
- */
-export function calculateTaskProgress(
-  startDate: string | Date | any,
-  startTime: string,
-  endDate: string | Date | any,
-  endTime: string
-) {
-  try {
-    // Handle MongoDB date format for startDate
-    let start: Date;
-    if (startDate && typeof startDate === 'object' && '$date' in startDate) {
-      const timestamp = parseInt(startDate.$date.$numberLong || startDate.$date);
-      start = new Date(timestamp);
-    } else {
-      start = new Date(startDate);
-    }
-
-    // Handle MongoDB date format for endDate
-    let end: Date;
-    if (endDate && typeof endDate === 'object' && '$date' in endDate) {
-      const timestamp = parseInt(endDate.$date.$numberLong || endDate.$date);
-      end = new Date(timestamp);
-    } else {
-      end = new Date(endDate);
-    }
-
-    // Parse times and set them on the dates
-    const [startHour, startMin] = startTime.split(':').map(Number);
-    const [endHour, endMin] = endTime.split(':').map(Number);
-
-    start.setHours(startHour, startMin, 0, 0);
-    end.setHours(endHour, endMin, 0, 0);
-
-    const now = new Date();
-    const totalDuration = end.getTime() - start.getTime();
-    const elapsed = now.getTime() - start.getTime();
-
-    // Calculate percentage
-    let percentage = 0;
-    if (totalDuration > 0) {
-      percentage = Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100);
-    }
-
-    // Calculate remaining time
-    const remainingMs = Math.max(0, end.getTime() - now.getTime());
-    const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
-    const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-
-    // Determine status
-    let status: 'not_started' | 'in_progress' | 'completed' | 'overdue' = 'not_started';
-    if (now < start) {
-      status = 'not_started';
-    } else if (now >= start && now < end) {
-      status = 'in_progress';
-    } else if (now >= end) {
-      status = 'completed';
-    }
-
-    return {
-      percentage: Math.round(percentage),
-      remainingHours,
-      remainingMinutes,
-      status,
-      startTime: start,
-      endTime: end,
-      isOverdue: now > end,
-    };
-  } catch (error) {
-    console.error('Error calculating task progress:', error);
-    return {
-      percentage: 0,
-      remainingHours: 0,
-      remainingMinutes: 0,
-      status: 'not_started' as const,
-      startTime: new Date(),
-      endTime: new Date(),
-      isOverdue: false,
-    };
-  }
-}
-
-/**
- * Format durasi dalam format yang readable
- * @param hours - Jam
- * @param minutes - Menit
- * @returns String format "X jam Y menit" atau hanya "X jam" atau "Y menit"
- */
-export function formatDuration(hours: number, minutes: number): string {
-  if (hours === 0 && minutes === 0) return '0 menit';
-  if (hours === 0) return `${minutes} menit`;
-  if (minutes === 0) return `${hours} jam`;
-  return `${hours} jam ${minutes} menit`;
-}
-
-/**
- * Generate WhatsApp link
- * @param phoneNumber - Nomor telepon (bisa dengan atau tanpa +62)
- * @param message - Pesan (optional)
- * @returns URL untuk WhatsApp
- */
-export function generateWhatsAppLink(phoneNumber: string, message?: string): string {
-  if (!phoneNumber) return '#';
-  
-  // Normalize phone number - remove spaces, dashes, and +
-  let normalized = phoneNumber.replace(/[\s\-()]/g, '');
-  
-  // If starts with 0, replace with 62
-  if (normalized.startsWith('0')) {
-    normalized = '62' + normalized.slice(1);
-  }
-  
-  // If doesn't start with 62, add it
-  if (!normalized.startsWith('62')) {
-    normalized = '62' + normalized;
-  }
-
-  const baseUrl = `https://wa.me/${normalized}`;
-  
-  if (message) {
-    const encodedMessage = encodeURIComponent(message);
-    return `${baseUrl}?text=${encodedMessage}`;
-  }
-  
-  return baseUrl;
-}
-
-/**
- * Generate Phone call link
- * @param phoneNumber - Nomor telepon
- * @returns Tel URI
- */
-export function generatePhoneLink(phoneNumber: string): string {
-  if (!phoneNumber) return '#';
-  
-  // Normalize phone number
-  let normalized = phoneNumber.replace(/[\s\-()]/g, '');
-  
-  // If starts with 0, replace with +62
-  if (normalized.startsWith('0')) {
-    normalized = '+62' + normalized.slice(1);
-  }
-  
-  // If doesn't start with +, add it
-  if (!normalized.startsWith('+')) {
-    normalized = '+' + normalized;
-  }
-
-  return `tel:${normalized}`;
 }

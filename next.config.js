@@ -4,6 +4,10 @@ const nextConfig = {
   images: {
     domains: ['res.cloudinary.com', 'lh3.googleusercontent.com'],
   },
+  // Konfigurasi sederhana untuk API-based OCR
+  experimental: {
+    serverComponentsExternalPackages: [],
+  },
 };
 
 module.exports = nextConfig;

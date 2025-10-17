@@ -1,20 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Header } from '@/components/layouts/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, MapPin, Calendar, Clock, DollarSign, User, Star, CheckCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, Calendar, Clock, DollarSign, User, Star, CheckCircle, AlertCircle } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import Link from 'next/link';
+import { useProfileValidation } from '@/lib/hooks/useProfileValidation';
 
 export default function JobDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
+  const { canAccessFeatures, missingFields } = useProfileValidation();
   const jobId = params.id as string;
 
   const [job, setJob] = useState<any>(null);
@@ -22,6 +25,17 @@ export default function JobDetailPage() {
   const [isApplying, setIsApplying] = useState(false);
   const [applicationMessage, setApplicationMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Get referrer from query params
+  const from = searchParams.get('from') || 'pekerjaan';
+
+  const handleBack = () => {
+    if (from === 'dashboard') {
+      router.push('/dashboard');
+    } else {
+      router.push('/pekerjaan');
+    }
+  };
 
   useEffect(() => {
     fetchJobDetail();
@@ -52,6 +66,12 @@ export default function JobDetailPage() {
       return;
     }
 
+    if (!canAccessFeatures) {
+      toast.error('Lengkapi verifikasi dan profil untuk melamar pekerjaan');
+      router.push('/profil');
+      return;
+    }
+
     if (!applicationMessage.trim()) {
       toast.error('Silakan tulis pesan lamaran');
       return;
@@ -70,11 +90,10 @@ export default function JobDetailPage() {
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Lamaran berhasil dikirim!');
-        fetchJobDetail(); // Refresh to show updated applicants
+        toast.success('Lamaran berhasil dikirim! Pekerjaan ini sekarang ada di Dashboard > Pekerjaan Berlangsung');
+        fetchJobDetail();
         setApplicationMessage('');
         
-        // Redirect to dashboard after a short delay to show toast
         setTimeout(() => {
           router.push('/dashboard');
         }, 2000);
@@ -94,6 +113,12 @@ export default function JobDetailPage() {
       return;
     }
 
+    if (!canAccessFeatures) {
+      toast.error('Lengkapi verifikasi dan profil untuk menerima pekerjaan');
+      router.push('/profil');
+      return;
+    }
+
     setIsProcessing(true);
     try {
       const response = await fetch(`/api/tasks/${jobId}/accept-offer`, {
@@ -105,7 +130,7 @@ export default function JobDetailPage() {
 
       if (data.success) {
         toast.success('Pekerjaan berhasil diterima!');
-        fetchJobDetail(); // Refresh to show updated status
+        fetchJobDetail();
       } else {
         toast.error(data.error || 'Gagal menerima pekerjaan');
       }
@@ -120,6 +145,12 @@ export default function JobDetailPage() {
   const handleRejectOffer = async () => {
     if (!session) {
       toast.error('Silakan login terlebih dahulu');
+      return;
+    }
+
+    if (!canAccessFeatures) {
+      toast.error('Lengkapi verifikasi dan profil untuk menolak pekerjaan');
+      router.push('/profil');
       return;
     }
 
@@ -176,7 +207,7 @@ export default function JobDetailPage() {
 
   const isOwnJob = session?.user?.id === job?.posterId?._id;
   const hasApplied = job?.applicants?.some((app: any) => app.userId === session?.user?.id);
-  const isOfferedJob = job?.searchMethod === 'find_worker'; // Pekerjaan yang ditawari langsung
+  const isOfferedJob = job?.searchMethod === 'find_worker';
   const isAssignedToCurrentUser = job?.assignedTo === session?.user?.id;
 
   if (isLoading || !job) {
@@ -219,6 +250,41 @@ export default function JobDetailPage() {
         </div>
 
         <div className="container mx-auto px-4 py-6 max-w-4xl pb-32">
+          {/* Profile Incomplete Warning - Show at top of page */}
+          {!isOwnJob && !canAccessFeatures && (
+            <Card className="mb-6 border-yellow-200 bg-yellow-50">
+              <CardContent className="p-4">
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-700 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-yellow-800 mb-1">
+                      Profil Belum Lengkap
+                    </div>
+                    <div className="text-xs text-yellow-700 mb-3">
+                      Anda perlu melengkapi verifikasi dan profil untuk melamar pekerjaan.
+                      <br />
+                      <strong>Yang perlu dilengkapi:</strong> {missingFields.join(', ')}
+                    </div>
+                    <div className="flex gap-2">
+                      {!session?.user?.isVerified && (
+                        <Link href="/verifikasi">
+                          <Button size="sm" className="text-xs">
+                            Verifikasi KTP
+                          </Button>
+                        </Link>
+                      )}
+                      <Link href="/profil">
+                        <Button size="sm" variant="outline" className="text-xs border-yellow-600 text-yellow-700">
+                          Lengkapi Profil
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Job Header */}
           <Card className="mb-6">
             <CardContent className="p-6">
@@ -354,7 +420,7 @@ export default function JobDetailPage() {
             </Card>
           )}
 
-          {/* Application Form or Agreement Section */}
+          {/* Application Form - For Publication Jobs */}
           {!isOwnJob && job.status === 'open' && !isOfferedJob && (
             <Card className="mb-6">
               <CardHeader>
@@ -379,17 +445,33 @@ export default function JobDetailPage() {
                         placeholder="Ceritakan mengapa Anda cocok untuk pekerjaan ini, pengalaman relevan, dan kapan Anda bisa mulai..."
                         value={applicationMessage}
                         onChange={(e) => setApplicationMessage(e.target.value)}
+                        disabled={!canAccessFeatures}
                       />
                     </div>
+                    
+                    {!canAccessFeatures && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-yellow-700 flex-shrink-0 mt-0.5" />
+                        <div className="text-xs text-yellow-700">
+                          <strong>Profil belum lengkap.</strong> Lengkapi verifikasi dan profil untuk melamar pekerjaan.
+                        </div>
+                      </div>
+                    )}
+
                     <Button
                       onClick={handleApply}
-                      disabled={isApplying || !applicationMessage.trim()}
+                      disabled={isApplying || !applicationMessage.trim() || !canAccessFeatures}
                       className="w-full"
+                      title={!canAccessFeatures ? 'Lengkapi verifikasi dan profil untuk melamar' : ''}
                     >
                       {isApplying ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           Mengirim Lamaran...
+                        </>
+                      ) : !canAccessFeatures ? (
+                        <>
+                          🔒 Lengkapi Profil untuk Melamar
                         </>
                       ) : (
                         'Kirim Lamaran'
@@ -484,19 +566,28 @@ export default function JobDetailPage() {
                       variant="outline"
                       className="w-full border-blue-600 text-blue-600 hover:bg-blue-50"
                       onClick={() => {
-                        // Handle PDF download
                         window.open(`/api/tasks/${job._id}/agreement/download`, '_blank');
                       }}
                     >
                       📄 Unduh Surat Perjanjian Lengkap (PDF)
                     </Button>
                     
+                    {!canAccessFeatures && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-yellow-700 flex-shrink-0 mt-0.5" />
+                        <div className="text-xs text-yellow-700">
+                          <strong>Profil belum lengkap.</strong> Lengkapi verifikasi dan profil untuk menerima/menolak pekerjaan.
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="flex gap-3">
                       <Button
                         variant="outline"
                         onClick={handleRejectOffer}
-                        disabled={isProcessing}
-                        className="flex-1 border-red-600 text-red-600 hover:bg-red-100"
+                        disabled={isProcessing || !canAccessFeatures}
+                        className="flex-1 border-red-600 text-red-600 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={!canAccessFeatures ? 'Lengkapi profil untuk menolak pekerjaan' : ''}
                       >
                         {isProcessing ? (
                           <>
@@ -509,8 +600,9 @@ export default function JobDetailPage() {
                       </Button>
                       <Button
                         onClick={handleAcceptOffer}
-                        disabled={isProcessing}
-                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        disabled={isProcessing || !canAccessFeatures}
+                        className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={!canAccessFeatures ? 'Lengkapi profil untuk menerima pekerjaan' : ''}
                       >
                         {isProcessing ? (
                           <>

@@ -29,11 +29,9 @@ export async function GET(request: NextRequest) {
     if (searchMethod === 'publication') {
       // Publikasi jobs: status harus 'open'
       query.status = 'open';
-      query.searchMethod = 'publication'; // Explicit filter
     } else if (searchMethod === 'find_worker') {
       // Permintaan jobs: status bisa 'open', 'buka', atau 'draft' (show all find_worker requests)
       query.status = { $in: ['open', 'buka', 'draft'] };
-      query.searchMethod = 'find_worker'; // Explicit filter
     } else {
       // Default: hanya yang open
       query.status = 'open';
@@ -42,6 +40,10 @@ export async function GET(request: NextRequest) {
     // Add filters
     if (category) {
       query.category = category;
+    }
+
+    if (searchMethod) {
+      query.searchMethod = searchMethod;
     }
 
     if (search) {
@@ -55,10 +57,6 @@ export async function GET(request: NextRequest) {
       query.location = { $regex: location, $options: 'i' };
     }
 
-    console.log('=== JOBS API QUERY ===');
-    console.log('Query:', JSON.stringify(query, null, 2));
-    console.log('Limit:', limit);
-
     // Find tasks with poster information
     const tasks = await Task.find(query)
       .populate('posterId', 'name image isVerified rating')
@@ -66,13 +64,7 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .lean();
 
-    console.log('=== TASKS FOUND ===');
-    console.log('Count:', tasks.length);
-    if (tasks.length > 0) {
-      console.log('Sample task posterId:', tasks[0].posterId);
-    }
-
-    // Format the response - FIXED: Consistent field naming
+    // Format the response
     const formattedTasks = tasks.map((task) => ({
       _id: task._id,
       title: task.title,
@@ -87,20 +79,11 @@ export async function GET(request: NextRequest) {
       searchMethod: task.searchMethod,
       status: task.status,
       photos: task.photos || [],
-      // FIX: Provide both field names for consistency
-      poster: task.posterId,      // For /pekerjaan/[id] page
-      postedBy: task.posterId,    // For dashboard compatibility
-      posterId: task.posterId,    // Keep original field
-      assignedTo: task.assignedTo,
+      poster: task.posterId,
+      assignedTo: task.assignedTo, // Include assignedTo field
       createdAt: task.createdAt,
       applicants: task.applicants?.length || 0,
     }));
-
-    console.log('=== FORMATTED TASKS ===');
-    if (formattedTasks.length > 0) {
-      console.log('Sample formatted task poster:', formattedTasks[0].poster);
-      console.log('Sample formatted task postedBy:', formattedTasks[0].postedBy);
-    }
 
     return NextResponse.json({
       success: true,

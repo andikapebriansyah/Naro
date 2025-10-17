@@ -50,10 +50,7 @@ export async function POST(
     
     // Assign the worker to the task
     task.assignedTo = applicantUserId;
-    
-    // PERBAIKAN: Langsung set ke 'accepted' karena pekerja sudah apply (menunjukkan minat)
-    // Tidak perlu konfirmasi lagi dari pekerja untuk alur publikasi
-    task.status = 'accepted'; // Siap dimulai, menunggu jadwal
+    task.status = 'pending'; // Set to pending, waiting for worker confirmation
 
     // Reject all other pending applicants
     task.applicants.forEach((app: any, index: number) => {
@@ -66,7 +63,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: 'Pelamar berhasil diterima dan tugas siap dimulai sesuai jadwal'
+      message: 'Applicant accepted successfully'
     });
 
   } catch (error) {

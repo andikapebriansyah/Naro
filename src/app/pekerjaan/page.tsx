@@ -2,18 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layouts/Header';
 import { BottomNav } from '@/components/layouts/BottomNav';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, MapPin, Star, Clock, DollarSign, User, Calendar, AlertCircle } from 'lucide-react';
+import { Search, MapPin, Star, Clock, DollarSign, User, Calendar, AlertCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { getInitials } from '@/lib/utils';
 
 export default function AvailableJobsPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [jobs, setJobs] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [category, setCategory] = useState('');
@@ -27,27 +29,16 @@ export default function AvailableJobsPage() {
   const fetchJobs = async () => {
     setIsLoading(true);
     try {
-      if (activeTab === 'publikasi') {
-        // Publikasi tab - gunakan /api/jobs dengan searchMethod=publication
-        await fetchPublicationJobs();
-      } else {
-        // Permintaan tab - gunakan /api/worker-jobs untuk yang pending + /api/jobs untuk yang open
-        await fetchPermintaanJobs();
-      }
-    } catch (error) {
-      console.error('Error fetching jobs:', error);
-      toast.error('Terjadi kesalahan saat memuat pekerjaan');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchPublicationJobs = async () => {
-    try {
       const params = new URLSearchParams();
       if (category) params.append('category', category);
       if (searchQuery) params.append('search', searchQuery);
-      params.append('searchMethod', 'publication');
+      
+      // Filter by searchMethod based on active tab
+      if (activeTab === 'publikasi') {
+        params.append('searchMethod', 'publication');
+      } else {
+        params.append('searchMethod', 'find_worker');
+      }
 
       const response = await fetch(`/api/jobs?${params}`);
       const data = await response.json();
@@ -55,69 +46,13 @@ export default function AvailableJobsPage() {
       if (data.success) {
         setJobs(data.data);
       } else {
-        toast.error('Gagal memuat pekerjaan publikasi');
-        setJobs([]);
+        toast.error('Gagal memuat pekerjaan');
       }
     } catch (error) {
-      console.error('Error fetching publication jobs:', error);
-      setJobs([]);
-    }
-  };
-
-  const fetchPermintaanJobs = async () => {
-    try {
-      console.log('Fetching permintaan jobs...');
-      
-      // Get open/draft find_worker jobs (available for me to accept)
-      const availableResponse = await fetch('/api/jobs?searchMethod=find_worker&limit=50');
-      const availableData = await availableResponse.json();
-      
-      let availableJobs: any[] = [];
-      if (availableData.success) {
-        availableJobs = availableData.data.filter((job: any) => {
-          const jobOwnerId = job.postedBy?._id?.toString() || job.postedBy?.toString();
-          const isNotMine = jobOwnerId !== session?.user?.id;
-          const isOpen = ['open', 'draft'].includes(job.status);
-          return isNotMine && isOpen;
-        });
-        console.log('Available permintaan jobs (open/draft):', availableJobs.length);
-      }
-
-      // Get pending offers (assigned to me, waiting my confirmation)
-      const workerResponse = await fetch('/api/worker-jobs');
-      const workerData = await workerResponse.json();
-      
-      let pendingOffers: any[] = [];
-      if (workerData.success) {
-        pendingOffers = workerData.data.filter((job: any) => 
-          job.status === 'pending' && job.isAssignedWorker === true
-        );
-        console.log('Pending offers for me:', pendingOffers.length);
-      }
-
-      // Combine both arrays
-      const allPermintaanJobs = [...pendingOffers, ...availableJobs];
-      
-      // Apply category filter if selected
-      let filteredJobs = allPermintaanJobs;
-      if (category) {
-        filteredJobs = allPermintaanJobs.filter(job => job.category === category);
-      }
-
-      // Apply search filter if entered
-      if (searchQuery) {
-        filteredJobs = filteredJobs.filter(job =>
-          job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          job.description.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-      }
-
-      console.log('Total permintaan jobs after filter:', filteredJobs.length);
-      setJobs(filteredJobs);
-
-    } catch (error) {
-      console.error('Error fetching permintaan jobs:', error);
-      setJobs([]);
+      console.error('Error fetching jobs:', error);
+      toast.error('Terjadi kesalahan saat memuat pekerjaan');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -180,6 +115,19 @@ export default function AvailableJobsPage() {
       <main className="min-h-screen bg-gray-50 pb-20">
         <div className="bg-white border-b sticky top-16 z-40">
           <div className="container mx-auto px-4 py-4">
+            {/* Back to Dashboard Button */}
+            <div className="mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/dashboard')}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Kembali ke Dashboard
+              </Button>
+            </div>
+
             <h1 className="text-2xl font-bold mb-4">Pekerjaan Tersedia</h1>
 
             {/* Tab Navigation */}
@@ -211,7 +159,7 @@ export default function AvailableJobsPage() {
               <p className="text-sm text-blue-700">
                 {activeTab === 'publikasi' 
                   ? '📢 Pekerjaan yang dipublikasikan dan mencari pelamar. Anda bisa langsung melamar.'
-                  : '🔍 Permintaan pencarian pekerja. Pemberi kerja akan menghubungi Anda jika tertarik. Atau pekerjaan yang sudah ditawarkan khusus ke Anda.'
+                  : '🔍 Permintaan pencarian pekerja. Pemberi kerja akan menghubungi Anda jika tertarik.'
                 }
               </p>
             </div>
@@ -358,11 +306,6 @@ export default function AvailableJobsPage() {
                               }`}>
                                 {job.searchMethod === 'publication' ? '📢 Publikasi' : '🔍 Permintaan'}
                               </span>
-                              {job.status === 'pending' && (
-                                <span className="inline-block px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700 font-semibold">
-                                  ⭐ Ditawari Khusus
-                                </span>
-                              )}
                             </div>
                           </div>
                           <div className="text-right">
@@ -406,19 +349,19 @@ export default function AvailableJobsPage() {
                         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                           <div className="flex items-center space-x-2">
                             <div className="h-8 w-8 bg-primary-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                              {getInitials(job.poster?.name || job.postedBy?.name || 'Pengguna')}
+                              {getInitials(job.poster?.name || 'Pengguna')}
                             </div>
                             <div>
                               <div className="flex items-center space-x-1">
-                                <span className="text-sm font-medium">{job.poster?.name || job.postedBy?.name}</span>
-                                {(job.poster?.isVerified || job.postedBy?.isVerified) && (
+                                <span className="text-sm font-medium">{job.poster?.name}</span>
+                                {job.poster?.isVerified && (
                                   <span className="text-blue-500 text-sm">✓</span>
                                 )}
                               </div>
-                              {(job.poster?.rating || job.postedBy?.rating) && (
+                              {job.poster?.rating && (
                                 <div className="flex items-center space-x-1">
                                   <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                                  <span className="text-xs text-gray-600">{job.poster?.rating || job.postedBy?.rating}</span>
+                                  <span className="text-xs text-gray-600">{job.poster.rating}</span>
                                 </div>
                               )}
                             </div>

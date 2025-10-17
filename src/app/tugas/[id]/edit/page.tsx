@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProfileGuard } from '@/components/guards/ProfileGuard';
+import { WorkerRecommendation } from '@/components/features/tasks/WorkerRecommendation';
 
 const categories = [
   { value: 'kebersihan', label: 'Kebersihan & Perawatan' },
@@ -61,11 +62,11 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
     try {
       const response = await fetch(`/api/tasks/${params.id}`);
       const data = await response.json();
-
+      
       if (data.success) {
         const taskData = data.data;
         setTask(taskData);
-
+        
         // Populate form with existing data
         setFormData({
           title: taskData.title || '',
@@ -81,7 +82,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
           pricingType: taskData.pricingType || 'fixed',
           searchMethod: taskData.searchMethod || 'publication',
         });
-
+        
         // Load existing photos
         if (taskData.photos && taskData.photos.length > 0) {
           setPhotoPreviews(taskData.photos);
@@ -156,15 +157,14 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
 
       if (result.success) {
         toast.success('Tugas berhasil diperbarui!');
-
-        // FIXED: Routing logic untuk edit tugas
+        
+        // Arahkan berdasarkan metode pencarian yang dipilih
         if (formData.searchMethod === 'find_worker') {
           // Jika pilih "Cari Pekerja", arahkan ke halaman cari pekerja
           router.push(`/tugas/${params.id}/cari-pekerja`);
         } else {
-          // Jika pilih "Publikasikan", kembali ke detail tugas
-          // Karena perjanjian sudah dibuat saat create, tidak perlu ke perjanjian lagi
-          router.push(`/tugas/${params.id}`);
+          // Jika pilih "Publikasikan", ke surat perjanjian
+          router.push(`/tugas/${params.id}/perjanjian`);
         }
       } else {
         toast.error(result.error || 'Gagal menyimpan perubahan');
@@ -350,7 +350,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                       </label>
                     )}
                   </div>
-
+                  
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start space-x-2">
                     <span className="text-blue-500">💡</span>
                     <div className="text-sm text-blue-700">
@@ -476,8 +476,8 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                     <select
                       className="w-full h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mt-2"
                       value={formData.pricingType}
-                      onChange={(e) => setFormData({
-                        ...formData,
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
                         pricingType: e.target.value as 'fixed' | 'hourly' | 'daily' | 'weekly' | 'monthly'
                       })}
                       required
@@ -508,10 +508,10 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                         type="number"
                         placeholder={
                           formData.pricingType === 'hourly' ? '50000' :
-                            formData.pricingType === 'daily' ? '300000' :
-                              formData.pricingType === 'weekly' ? '1500000' :
-                                formData.pricingType === 'monthly' ? '5000000' :
-                                  '150000'
+                          formData.pricingType === 'daily' ? '300000' :
+                          formData.pricingType === 'weekly' ? '1500000' :
+                          formData.pricingType === 'monthly' ? '5000000' :
+                          '150000'
                         }
                         className="rounded-l-none"
                         value={formData.budget}
@@ -528,7 +528,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                       </div>
                     )}
                   </div>
-
+                  
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start space-x-2">
                     <span className="text-blue-500">ℹ️</span>
                     <p className="text-sm text-blue-700">
@@ -547,10 +547,11 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                   <div className="grid grid-cols-2 gap-4">
                     <div
                       onClick={() => setFormData({ ...formData, searchMethod: 'publication' })}
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${formData.searchMethod === 'publication'
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                        formData.searchMethod === 'publication'
                           ? 'border-primary-500 bg-primary-50'
                           : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                      }`}
                     >
                       <div className="text-center">
                         <div className="text-3xl mb-2">📢</div>
@@ -563,10 +564,11 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
 
                     <div
                       onClick={() => setFormData({ ...formData, searchMethod: 'find_worker' })}
-                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${formData.searchMethod === 'find_worker'
+                      className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                        formData.searchMethod === 'find_worker'
                           ? 'border-primary-500 bg-primary-50'
                           : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                      }`}
                     >
                       <div className="text-center">
                         <div className="text-3xl mb-2">🔎</div>
@@ -592,6 +594,23 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                     </div>
                   </div>
                 </div>
+
+                {/* AI Worker Recommendation - Only show when find_worker is selected */}
+                {formData.searchMethod === 'find_worker' && formData.title && formData.description && formData.category && (
+                  <WorkerRecommendation
+                    jobData={{
+                      title: formData.title,
+                      description: formData.description,
+                      category: formData.category,
+                      location: formData.location,
+                      locationCoordinates: formData.locationCoordinates
+                    }}
+                    onWorkerSelect={(worker) => {
+                      // Redirect to cari-pekerja page with selected worker
+                      router.push(`/tugas/${params.id}/cari-pekerja?workerId=${worker._id}`);
+                    }}
+                  />
+                )}
 
                 <div className="flex space-x-4">
                   <Button
@@ -632,7 +651,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                   </Button>
                 </div>
               </div>
-
+              
               {/* Content */}
               <div className="p-6">
                 <div className="bg-gray-50 rounded-lg p-6">
@@ -641,7 +660,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                     <h4 className="text-lg font-semibold text-gray-800 mb-2">Koordinat Lokasi</h4>
                     <p className="text-sm text-gray-600">Masukkan koordinat atau gunakan lokasi saat ini</p>
                   </div>
-
+                  
                   <div className="space-y-4 max-w-sm mx-auto">
                     <div>
                       <Label htmlFor="tempLat">Latitude</Label>
@@ -673,7 +692,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                     </div>
                   </div>
                 </div>
-
+                
                 {/* Button Gunakan Lokasi */}
                 <Button
                   type="button"
@@ -702,7 +721,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                   <span className="mr-2">📍</span>
                   Gunakan Lokasi Saat Ini
                 </Button>
-
+                
                 {/* Preview koordinat jika sudah ada */}
                 {(tempCoordinates.lat !== 0 && tempCoordinates.lng !== 0) && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
@@ -718,7 +737,7 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
                   </div>
                 )}
               </div>
-
+              
               {/* Footer */}
               <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-xl">
                 <div className="flex justify-end space-x-3">

@@ -8,48 +8,12 @@ import { BottomNav } from '@/components/layouts/BottomNav';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { 
-  formatCurrency, 
-  formatDate, 
-  getStatusLabel, 
-  getStatusColor,
-  calculateTaskProgress,
-  formatDuration
-} from '@/lib/utils';
+import { formatCurrency, formatDate, getStatusLabel, getStatusColor } from '@/lib/utils';
 import { Clock, CheckCircle, XCircle, Briefcase, UserCheck, Edit, Trash2 } from 'lucide-react';
 import { CancelTaskModal } from '@/components/features/tasks/CancelTaskModal';
 
 type TabType = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 type ModeType = 'worker' | 'employer';
-
-interface TaskData {
-  _id: string;
-  title: string;
-  category: string;
-  location: string;
-  scheduledDate: string;
-  startDate: string;
-  startTime: string;
-  endDate: string;
-  endTime: string;
-  estimatedDuration?: string;
-  budget: number;
-  status: string;
-  applicationStatus?: string;
-  isAssignedWorker?: boolean;
-  poster?: {
-    _id: string;
-    name: string;
-    phone?: string;
-    rating?: number;
-  };
-  assignedTo?: {
-    _id: string;
-    name: string;
-    phone?: string;
-    rating?: number;
-  };
-}
 
 export default function HistoryPage() {
   const { data: session } = useSession();
@@ -58,9 +22,8 @@ export default function HistoryPage() {
   
   const [mode, setMode] = useState<ModeType>(modeParam || 'worker');
   const [activeTab, setActiveTab] = useState<TabType>('in_progress');
-  const [tasks, setTasks] = useState<TaskData[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [posterData, setPosterData] = useState<Record<string, any>>({});
   const [cancelModal, setCancelModal] = useState<{
     isOpen: boolean;
     taskId: string;
@@ -81,9 +44,10 @@ export default function HistoryPage() {
   const fetchTasks = async () => {
     setIsLoading(true);
     try {
-      let endpoint = '/api/worker-jobs';
+      let endpoint = '/api/worker-jobs'; // Default for worker mode
       
       if (mode === 'employer') {
+        // For employer mode, get tasks they created
         endpoint = '/api/my-tasks';
       }
       
@@ -93,18 +57,35 @@ export default function HistoryPage() {
       console.log(`History API response (${mode} mode):`, data);
       
       if (data.success) {
+        // Filter based on active tab and mode
         let filteredTasks = data.data;
         
         if (mode === 'employer') {
+          // For employer: filter based on task status and applicant acceptance
+          console.log('All tasks before filtering:', data.data.map((t: any) => ({ 
+            title: t.title, 
+            status: t.status, 
+            assignedTo: t.assignedTo,
+            assignedToType: typeof t.assignedTo,
+            assignedToKeys: t.assignedTo ? Object.keys(t.assignedTo) : 'null'
+          })));
+          
           switch (activeTab) {
             case 'pending':
+              // Show tasks that are open (waiting for applicants) OR pending (waiting for worker confirmation)
               filteredTasks = data.data.filter((task: any) => 
                 task.status === 'open' || task.status === 'pending'
               );
+              console.log('Pending filtered tasks:', filteredTasks.map((t: any) => ({ 
+                title: t.title, 
+                status: t.status, 
+                assignedTo: t.assignedTo 
+              })));
               break;
             case 'in_progress':
+              // Tasks that have been assigned and are in progress (pending, accepted, active)
               filteredTasks = data.data.filter((task: any) => 
-                ['accepted', 'active', 'proses'].includes(task.status) && task.assignedTo !== null
+                ['pending', 'accepted', 'active', 'proses'].includes(task.status) && task.assignedTo !== null
               );
               break;
             case 'completed':
@@ -119,6 +100,7 @@ export default function HistoryPage() {
               break;
           }
         } else {
+          // For worker mode: filter based on assignment status and application status
           switch (activeTab) {
             case 'pending':
               filteredTasks = data.data.filter((task: any) => 
@@ -146,6 +128,7 @@ export default function HistoryPage() {
           }
         }
         
+        console.log(`Filtered tasks for tab '${activeTab}' in ${mode} mode:`, filteredTasks);
         setTasks(filteredTasks);
       } else {
         console.error(`Failed to fetch ${mode} tasks:`, data.error);
@@ -184,11 +167,11 @@ export default function HistoryPage() {
     return colorMap[status] || 'bg-gray-100 text-gray-700';
   };
 
-  const canEditTask = (task: TaskData) => {
-    return ['draft', 'open', 'pending'].includes(task.status);
+  const canEditTask = (task: any) => {
+    return ['draft', 'open', 'pending'].includes(task.status) && !task.assignedTo;
   };
 
-  const canCancelTask = (task: TaskData) => {
+  const canCancelTask = (task: any) => {
     return ['draft', 'open', 'pending', 'accepted'].includes(task.status);
   };
 
@@ -214,6 +197,7 @@ export default function HistoryPage() {
       const data = await response.json();
 
       if (data.success) {
+        // Refresh the tasks list
         fetchTasks();
         setCancelModal({ isOpen: false, taskId: '', taskTitle: '' });
       } else {
@@ -310,231 +294,245 @@ export default function HistoryPage() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {tasks.map((task) => {
-                const progress = calculateTaskProgress(
-                  task.startDate,
-                  task.startTime,
-                  task.endDate,
-                  task.endTime
-                );
-
-                return (
-                  <div key={task._id}>
-                    {activeTab === 'in_progress' ? (
-                      // Special layout for in_progress tab
-                      <Card className="hover:shadow-lg transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg mb-1">{task.title}</h3>
-                              <p className="text-sm text-gray-600">{task.category}</p>
-                            </div>
-                            <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-medium">
-                              Proses
-                            </span>
+              {tasks.map((task) => (
+                <div key={task._id}>
+                  {activeTab === 'in_progress' ? (
+                    // Special layout for in_progress tab
+                    <Card className="hover:shadow-lg transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg mb-1">{task.title}</h3>
+                            <p className="text-sm text-gray-600">{task.category}</p>
                           </div>
+                          <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-medium">
+                            Proses
+                          </span>
+                        </div>
 
-                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
-                            <div className="flex items-center space-x-1">
-                              <span>📍</span>
-                              <span>{task.location}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <span>📅</span>
-                              <span>{formatDate(task.startDate)}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <span>⏱️</span>
-                              <span>
-                                {task.startTime} - {task.endTime}
-                              </span>
-                            </div>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+                          <div className="flex items-center space-x-1">
+                            <span>📍</span>
+                            <span>{task.location}</span>
                           </div>
+                          <div className="flex items-center space-x-1">
+                            <span>📅</span>
+                            <span>{formatDate(task.scheduledDate)}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span>⏱️</span>
+                            <span>{task.estimatedDuration || '2-3 jam'}</span>
+                          </div>
+                        </div>
 
-                          {/* Info Box - Same for both employer and worker */}
-                          {(mode === 'employer' && task.assignedTo) || (mode === 'worker' && task.poster) ? (
+                        {mode === 'employer' ? (
+                          // Employer view - show worker info
+                          task.assignedTo ? (
                             <div className="bg-gray-50 rounded-lg p-3 mb-4">
                               <div className="flex items-center gap-3 mb-3">
                                 <div className="w-12 h-12 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold">
-                                  {mode === 'employer' 
-                                    ? (task.assignedTo?.name ? task.assignedTo.name.substring(0, 2).toUpperCase() : 'NA')
-                                    : (task.poster?.name ? task.poster.name.substring(0, 2).toUpperCase() : 'NA')
-                                  }
+                                  {task.assignedTo.name ? task.assignedTo.name.substring(0, 2).toUpperCase() : 'NA'}
                                 </div>
                                 <div className="flex-1">
                                   <div className="font-semibold text-gray-900">
-                                    {mode === 'employer' 
-                                      ? (task.assignedTo?.name || 'Tidak diketahui')
-                                      : (task.poster?.name || 'Tidak diketahui')
-                                    }
+                                    {task.assignedTo.name || 'Tidak diketahui'}
                                   </div>
                                   <div className="text-sm text-gray-600 flex items-center gap-1">
-                                    {mode === 'employer' ? (
-                                      <>
-                                        <span className="text-yellow-500">⭐</span>
-                                        <span>{task.assignedTo?.rating || '4.8'} (120+ ulasan)</span>
-                                      </>
-                                    ) : (
-                                      <span>✓ Terverifikasi</span>
-                                    )}
+                                    <span className="text-yellow-500">⭐</span>
+                                    <span>{task.assignedTo.rating || '4.8'} (120+ ulasan)</span>
                                   </div>
                                 </div>
                               </div>
                               
                               <div className="mb-3">
                                 <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                                  <div 
-                                    className="bg-green-500 h-2 rounded-full transition-all"
-                                    style={{ width: `${progress.percentage}%` }}
-                                  ></div>
+                                  <div className="bg-green-500 h-2 rounded-full" style={{width: '60%'}}></div>
                                 </div>
                                 <div className="text-xs text-gray-600 text-center">
-                                  {progress.percentage}% • {formatDuration(progress.remainingHours, progress.remainingMinutes)} tersisa
+                                  Estimasi selesai dalam 2 jam
                                 </div>
                               </div>
 
                               <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="flex-1 text-xs"
-                                  onClick={() => {
-                                    const phone = mode === 'employer' ? task.assignedTo?.phone : task.poster?.phone;
-                                    if (phone) {
-                                      window.open(`https://wa.me/${phone.replace(/\D/g, '')}`, '_blank');
-                                    } else {
-                                      alert('Nomor WhatsApp tidak tersedia');
-                                    }
-                                  }}
-                                >
+                                <Button variant="outline" size="sm" className="flex-1 text-xs">
                                   💬 Chat
                                 </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="flex-1 text-xs"
-                                  onClick={() => {
-                                    const phone = mode === 'employer' ? task.assignedTo?.phone : task.poster?.phone;
-                                    if (phone) {
-                                      window.location.href = `tel:${phone.replace(/\D/g, '')}`;
-                                    } else {
-                                      alert('Nomor telepon tidak tersedia');
-                                    }
-                                  }}
-                                >
+                                <Button variant="outline" size="sm" className="flex-1 text-xs">
                                   📞 Telepon
+                                </Button>
+                                <Button variant="outline" size="sm" className="flex-1 text-xs">
+                                  📍 Lacak
                                 </Button>
                               </div>
                             </div>
-                          ) : mode === 'employer' ? (
+                          ) : (
                             <div className="bg-yellow-50 rounded-lg p-3 mb-4 text-center text-sm text-yellow-700">
                               Menunggu pekerja memulai tugas
                             </div>
-                          ) : null}
-
-                          <div className="flex items-center justify-between pt-3 border-t">
-                            <span className="text-lg font-bold text-primary-600">
-                              {formatCurrency(task.budget)}
-                            </span>
-                            <div className="flex gap-2">
-                              <Link href={`/tugas/${task._id}`}>
-                                <Button variant="outline" size="sm">Detail</Button>
-                              </Link>
-                              <Button className="bg-red-600 hover:bg-red-700 text-white" size="sm">
-                                Laporkan
-                              </Button>
-                              <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm">
-                                Selesai
-                              </Button>
+                          )
+                        ) : (
+                          // Worker view - show employer info and progress
+                          <div className="bg-blue-50 rounded-lg p-3 mb-4">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                {task.poster ? task.poster.name.substring(0, 2).toUpperCase() : 'NA'}
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-semibold text-gray-900 text-sm">
+                                  {task.poster?.name || 'Tidak diketahui'}
+                                </div>
+                                <div className="text-xs text-gray-600">✓ Terverifikasi</div>
+                              </div>
+                            </div>
+                            
+                            <div className="mb-3">
+                              <div className="text-xs font-semibold text-gray-700 mb-2">Progress Pekerjaan</div>
+                              <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                                <div className="bg-blue-500 h-2 rounded-full" style={{width: '60%'}}></div>
+                              </div>
+                              <div className="flex justify-between text-xs text-gray-600">
+                                <span>60% selesai</span>
+                                <span>1.5 jam tersisa</span>
+                              </div>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      // Default layout for other tabs
-                      <Card className="hover:shadow-lg transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <h3 className="font-semibold mb-1">{task.title}</h3>
-                              <p className="text-sm text-gray-600">{task.category}</p>
-                              {mode === 'employer' && task.assignedTo && (
-                                <p className="text-sm text-blue-600 font-medium">
-                                  Pekerja: {task.assignedTo.name || 'Tidak diketahui'}
-                                </p>
-                              )}
-                              {mode === 'worker' && task.poster && (
-                                <p className="text-sm text-green-600 font-medium">
-                                  Pemberi Kerja: {task.poster.name || 'Tidak diketahui'}
-                                </p>
-                              )}
-                            </div>
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full ${
-                                mode === 'worker' && task.applicationStatus 
-                                  ? getApplicationStatusColor(task.applicationStatus)
-                                  : getStatusColor(task.status)
-                              }`}
-                            >
-                              {mode === 'worker' && task.applicationStatus 
-                                ? getApplicationStatusLabel(task.applicationStatus)
-                                : getStatusLabel(task.status)
-                              }
-                            </span>
-                          </div>
+                        )}
 
-                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-                            <div className="flex items-center space-x-1">
-                              <span>📍</span>
-                              <span>{task.location}</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <span>📅</span>
-                              <span>{formatDate(task.startDate)}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-lg font-bold text-primary-600">
-                              {formatCurrency(task.budget)}
-                            </span>
-                            <div className="flex gap-2">
-                              {mode === 'employer' && (
-                                <>
-                                  {canEditTask(task) && (
-                                    <Link href={`/tugas/${task._id}/edit`}>
-                                      <Button variant="outline" size="sm" className="flex items-center gap-1">
-                                        <Edit className="h-3 w-3" />
-                                        Edit
-                                      </Button>
-                                    </Link>
-                                  )}
-                                  {canCancelTask(task) && (
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      onClick={() => handleCancelTask(task._id, task.title)}
-                                      className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                      Batalkan
-                                    </Button>
-                                  )}
-                                </>
-                              )}
-                              <Link href={`/tugas/${task._id}`}>
-                                <Button variant="outline" size="sm">
-                                  Detail →
+                        <div className="flex items-center justify-between pt-3 border-t">
+                          <span className="text-lg font-bold text-primary-600">
+                            {formatCurrency(task.budget)}
+                          </span>
+                          <div className="flex gap-2">
+                            {mode === 'employer' ? (
+                              <>
+                                <Link href={`/tugas/${task._id}`}>
+                                  <Button variant="outline" size="sm">Detail</Button>
+                                </Link>
+                                <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm">
+                                  Konfirmasi Selesai
                                 </Button>
-                              </Link>
-                            </div>
+                              </>
+                            ) : (
+                              <>
+                                <Link href={`/tugas/${task._id}`}>
+                                  <Button variant="outline" size="sm">Chat</Button>
+                                </Link>
+                                <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm">
+                                  Selesai
+                                </Button>
+                              </>
+                            )}
                           </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                );
-              })}
+                        </div>
+
+                        {mode === 'worker' && (
+                          <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t">
+                            <Button variant="outline" size="sm" className="text-xs flex flex-col items-center py-2 h-auto">
+                              <span className="text-base mb-1">📍</span>
+                              <span>Navigasi</span>
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-xs flex flex-col items-center py-2 h-auto">
+                              <span className="text-base mb-1">📞</span>
+                              <span>Telepon</span>
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-xs flex flex-col items-center py-2 h-auto">
+                              <span className="text-base mb-1">📄</span>
+                              <span>Perjanjian</span>
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    // Default layout for other tabs
+                    <Card className="hover:shadow-lg transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <h3 className="font-semibold mb-1">{task.title}</h3>
+                            <p className="text-sm text-gray-600">{task.category}</p>
+                            {mode === 'employer' && task.assignedTo && (
+                              <p className="text-sm text-blue-600 font-medium">
+                                Pekerja: {task.assignedTo.name || 'Tidak diketahui'}
+                              </p>
+                            )}
+                            {mode === 'worker' && task.poster && (
+                              <p className="text-sm text-green-600 font-medium">
+                                Pemberi Kerja: {task.poster.name || 'Tidak diketahui'}
+                              </p>
+                            )}
+                          </div>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              mode === 'worker' && task.applicationStatus 
+                                ? getApplicationStatusColor(task.applicationStatus)
+                                : getStatusColor(task.status)
+                            }`}
+                          >
+                            {mode === 'worker' && task.applicationStatus 
+                              ? getApplicationStatusLabel(task.applicationStatus)
+                              : getStatusLabel(task.status)
+                            }
+                          </span>
+                        </div>
+
+                        <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                          <div className="flex items-center space-x-1">
+                            <span>📍</span>
+                            <span>{task.location}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span>📅</span>
+                            <span>{formatDate(task.scheduledDate)}</span>
+                          </div>
+                          {mode === 'employer' && (
+                            <div className="flex items-center space-x-1">
+                              <span>👥</span>
+                              <span>{task.applicants || 0} pelamar</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-lg font-bold text-primary-600">
+                            {formatCurrency(task.budget)}
+                          </span>
+                          <div className="flex gap-2">
+                            {mode === 'employer' && (
+                              <>
+                                {canEditTask(task) && (
+                                  <Link href={`/tugas/${task._id}/edit`}>
+                                    <Button variant="outline" size="sm" className="flex items-center gap-1">
+                                      <Edit className="h-3 w-3" />
+                                      Edit
+                                    </Button>
+                                  </Link>
+                                )}
+                                {canCancelTask(task) && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => handleCancelTask(task._id, task.title)}
+                                    className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                    Batalkan
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                            <Link href={`/tugas/${task._id}`}>
+                              <Button variant="outline" size="sm">
+                                Detail →
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

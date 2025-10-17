@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     // Find tasks where user is the assigned worker
     const tasks = await Task.find(query)
-      .populate('posterId', 'name image isVerified rating phone')
+      .populate('posterId', 'name image isVerified rating')
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
@@ -59,10 +59,6 @@ export async function GET(request: NextRequest) {
         location: task.location,
         scheduledDate: task.scheduledDate,
         scheduledTime: task.scheduledTime,
-        startDate: task.startDate,
-        startTime: task.startTime,
-        endDate: task.endDate,
-        endTime: task.endTime,
         estimatedDuration: task.estimatedDuration,
         budget: task.budget,
         pricingType: task.pricingType,

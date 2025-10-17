@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
 
     const query: any = {
-      role: { $in: ['tasker', 'user'] },
+      role: { $in: ['tasker', 'user', 'admin'] }, // Include admin role
       isVerified: true,
       // Add profile completeness check
       phone: { $exists: true, $ne: "" },

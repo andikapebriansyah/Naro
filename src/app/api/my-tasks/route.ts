@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
 
     console.log('Query:', query);
 
-    // Find tasks with assignee information if any - FIXED: Added 'phone' field
+    // Find tasks with assignee information if any
     const tasks = await Task.find(query)
-      .populate('assignedTo', 'name image isVerified rating phone')
+      .populate('assignedTo', 'name image isVerified rating')
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     console.log('Found tasks:', tasks.length);
     console.log('Tasks:', tasks.map(t => ({ id: t._id, title: t.title, status: t.status, assignedTo: t.assignedTo })));
 
-    // Format the response - FIXED: Added all date/time fields
+    // Format the response
     const formattedTasks = tasks.map((task) => ({
       _id: task._id,
       title: task.title,
@@ -64,10 +64,6 @@ export async function GET(request: NextRequest) {
       location: task.location,
       scheduledDate: task.scheduledDate,
       scheduledTime: task.scheduledTime,
-      startDate: task.startDate,
-      startTime: task.startTime,
-      endDate: task.endDate,
-      endTime: task.endTime,
       estimatedDuration: task.estimatedDuration,
       budget: task.budget,
       pricingType: task.pricingType,

@@ -35,26 +35,10 @@ export async function POST(
       );
     }
 
-    console.log('=== APPLY API ===');
-    console.log('Task ID:', taskId);
-    console.log('Task Status:', task.status);
-    console.log('Search Method:', task.searchMethod);
-    console.log('User ID:', session.user.id);
-    console.log('Task Poster ID:', task.posterId.toString());
-
-    // FIX: Check if task is available for application
-    // For publication jobs: allow apply if status is 'open' OR 'pending' (pending means waiting for poster to choose)
-    // For find_worker jobs: cannot apply, must be offered
-    if (task.searchMethod === 'find_worker') {
+    // Check if task is still open
+    if (task.status !== 'open') {
       return NextResponse.json(
-        { success: false, error: 'Pekerjaan ini menggunakan metode pencarian pekerja langsung. Anda tidak bisa melamar.' },
-        { status: 400 }
-      );
-    }
-
-    if (!['open', 'pending'].includes(task.status)) {
-      return NextResponse.json(
-        { success: false, error: 'Pekerjaan ini sudah tidak tersedia untuk lamaran' },
+        { success: false, error: 'Pekerjaan ini sudah tidak tersedia' },
         { status: 400 }
       );
     }
@@ -79,14 +63,6 @@ export async function POST(
       );
     }
 
-    // Check if task already has assigned worker
-    if (task.assignedTo) {
-      return NextResponse.json(
-        { success: false, error: 'Pekerjaan ini sudah memiliki pekerja yang ditugaskan' },
-        { status: 400 }
-      );
-    }
-
     // Add application
     task.applicants.push({
       userId: session.user.id,
@@ -95,13 +71,15 @@ export async function POST(
       message: message.trim()
     });
 
-    // Update task status to pending when first application is received (if still open)
+    // Update task status to pending when first application is received
     const oldStatus = task.status;
-    if (task.status === 'open' && task.applicants.length === 1) {
+    if (task.status === 'open') {
       task.status = 'pending';
     }
 
     console.log('=== APPLY API SAVE ===');
+    console.log('Task ID:', task._id);
+    console.log('User ID:', session.user.id);
     console.log('Old status:', oldStatus);
     console.log('New status:', task.status);
     console.log('Total applicants after add:', task.applicants.length);

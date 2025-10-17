@@ -8,9 +8,11 @@ import { BottomNav } from '@/components/layouts/BottomNav';
 import { Button } from '@/components/ui/button';
 import { useProfileValidation } from '@/lib/hooks/useProfileValidation';
 import Link from 'next/link';
-import { Plus, ChevronRight, MapPin, Calendar, Star, Edit, Trash2 } from 'lucide-react';
+import { Plus, ChevronRight, MapPin, Calendar, Star, Edit, Trash2, AlertCircle } from 'lucide-react';
 import { CancelTaskModal } from '@/components/features/tasks/CancelTaskModal';
 import { toast } from 'sonner';
+
+type VerificationStatus = 'not_submitted' | 'pending' | 'approved' | 'rejected';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -18,6 +20,9 @@ export default function DashboardPage() {
   const { canAccessFeatures, missingFields, isTaskerProfileComplete, canCreateTasks, missingBasicFields } = useProfileValidation();
   const [activeTab, setActiveTab] = useState<'beri-kerja' | 'cari-kerja'>('beri-kerja');
   const [jobTab, setJobTab] = useState<'permintaan' | 'publikasi'>('permintaan');
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('not_submitted');
+  const [isLoadingVerification, setIsLoadingVerification] = useState(true);
+  const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [offeredJobs, setOfferedJobs] = useState<any[]>([]);
   const [activeWorkerJobs, setActiveWorkerJobs] = useState<any[]>([]);
   const [allJobs, setAllJobs] = useState<any[]>([]);
@@ -57,10 +62,36 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
+  // Fetch verification status when authenticated
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      fetchVerificationStatus();
+    }
+  }, [status, session?.user]);
+
+  const fetchVerificationStatus = async () => {
+    try {
+      setIsLoadingVerification(true);
+      const response = await fetch('/api/users/profile');
+      const data = await response.json();
+      
+      if (data.success && data.data?.ktpVerification?.status) {
+        setVerificationStatus(data.data.ktpVerification.status);
+      } else {
+        setVerificationStatus('not_submitted');
+      }
+    } catch (error) {
+      console.error('Error fetching verification status:', error);
+      setVerificationStatus('not_submitted');
+    } finally {
+      setIsLoadingVerification(false);
+    }
+  };
+
   // Refresh data when component mounts or tab changes
   useEffect(() => {
     if (status === 'authenticated') {
-      if (activeTab === 'cari-kerja' && canAccessFeatures) {
+      if (activeTab === 'cari-kerja') {
         fetchOfferedJobs();
         fetchActiveWorkerJobs();
         fetchWorkerStats();
@@ -71,7 +102,7 @@ export default function DashboardPage() {
         fetchMyTasks();
       }
     }
-  }, [activeTab, jobTab, canAccessFeatures, status]);
+  }, [activeTab, jobTab, status]);
 
   // Additional refresh when page becomes visible
   useEffect(() => {
@@ -79,7 +110,7 @@ export default function DashboardPage() {
       if (!document.hidden && status === 'authenticated') {
         if (activeTab === 'beri-kerja') {
           fetchMyTasks();
-        } else if (activeTab === 'cari-kerja' && canAccessFeatures) {
+        } else if (activeTab === 'cari-kerja') {
           fetchOfferedJobs();
           fetchActiveWorkerJobs();
           fetchWorkerStats();
@@ -92,47 +123,48 @@ export default function DashboardPage() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [activeTab, canAccessFeatures, status]);
+  }, [activeTab, status]);
 
-  // FIX 1: Updated fetchOfferedJobs - include 'draft' status and better filtering
   const fetchOfferedJobs = async () => {
     try {
-      console.log('=== Fetching ALL permintaan (open + pending for me) ===');
-      console.log('Current user:', session?.user?.id);
-
-      // Get available jobs (open/draft yang bukan milik saya)
-      const availableResponse = await fetch('/api/jobs?searchMethod=find_worker&limit=50');
-      const availableData = await availableResponse.json();
-
-      let availableJobs: any[] = [];
-      if (availableData.success) {
-        availableJobs = availableData.data.filter((job: any) => {
-          const jobOwnerId = job.postedBy?._id?.toString() || job.postedBy?.toString();
-          const isNotMine = jobOwnerId !== session?.user?.id;
-          const isOpen = ['open', 'draft'].includes(job.status);
-          return isNotMine && isOpen;
+      const response = await fetch('/api/jobs?searchMethod=find_worker&limit=10');
+      
+      if (!response.ok) {
+        console.error('Offered jobs API error:', response.status, response.statusText);
+        setOfferedJobs([]);
+        return;
+      }
+      
+      const responseText = await response.text();
+      if (!responseText) {
+        console.error('Empty response from offered jobs API');
+        setOfferedJobs([]);
+        return;
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (jsonError) {
+        console.error('JSON parse error in offered jobs:', jsonError);
+        setOfferedJobs([]);
+        return;
+      }
+      
+      if (data.success) {
+        const permintaanJobs = data.data.filter((job: any) => {
+          const jobOwnerId = job.postedBy?._id || job.postedBy;
+          const currentUserId = session?.user?.id;
+          const isOwn = jobOwnerId === currentUserId;
+          const isPendingForUser = job.status === 'pending' && job.assignedTo === currentUserId;
+          
+          return (!isOwn && job.status === 'open') || isPendingForUser;
         });
-        console.log('Available jobs (open/draft):', availableJobs.length);
+        
+        setOfferedJobs(permintaanJobs.slice(0, 3));
+      } else {
+        setOfferedJobs([]);
       }
-
-      // Get pending offers (assigned to me, waiting confirmation)
-      const workerResponse = await fetch('/api/worker-jobs');
-      const workerData = await workerResponse.json();
-
-      let pendingOffers: any[] = [];
-      if (workerData.success) {
-        pendingOffers = workerData.data.filter((job: any) =>
-          job.status === 'pending' && job.isAssignedWorker === true
-        );
-        console.log('Pending offers for me:', pendingOffers.length);
-      }
-
-      // Combine both
-      const allPermintaanJobs = [...availableJobs, ...pendingOffers];
-      console.log('Total permintaan jobs:', allPermintaanJobs.length);
-
-      setOfferedJobs(allPermintaanJobs.slice(0, 3));
-
     } catch (error) {
       console.error('Error fetching offered jobs:', error);
       setOfferedJobs([]);
@@ -141,48 +173,34 @@ export default function DashboardPage() {
 
   const fetchActiveWorkerJobs = async () => {
     try {
-      console.log('Fetching active worker jobs for user:', session?.user?.id);
-
       const response = await fetch('/api/worker-jobs');
-
+      
       if (!response.ok) {
-        console.error('Active worker jobs API error:', response.status, response.statusText);
         setActiveWorkerJobs([]);
         return;
       }
-
+      
       const responseText = await response.text();
-
       if (!responseText) {
-        console.error('Empty response from active worker jobs API');
         setActiveWorkerJobs([]);
         return;
       }
-
+      
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (jsonError) {
-        console.error('JSON parse error in active worker jobs:', jsonError);
         setActiveWorkerJobs([]);
         return;
       }
-
+      
       if (data.success) {
         const activeJobs = data.data.filter((job: any) => {
-          const isActiveStatus = ['accepted', 'active'].includes(job.status);
-          console.log('Worker job filtering:', {
-            jobId: job._id,
-            status: job.status,
-            isActive: isActiveStatus
-          });
-          return isActiveStatus;
+          return ['pending', 'accepted', 'active'].includes(job.status);
         });
-
-        console.log('Filtered active worker jobs:', activeJobs.length);
+        
         setActiveWorkerJobs(activeJobs.slice(0, 2));
       } else {
-        console.error('Active worker jobs API failed:', data.error);
         setActiveWorkerJobs([]);
       }
     } catch (error) {
@@ -191,70 +209,43 @@ export default function DashboardPage() {
     }
   };
 
-  // FIX 2: Updated fetchAllJobs - removed hasApplied filter since API returns count not array
   const fetchAllJobs = async () => {
     try {
-      console.log('Fetching all publication jobs for user:', session?.user?.id);
       const response = await fetch('/api/jobs?limit=20&searchMethod=publication');
       const data = await response.json();
-
+      
       if (data.success) {
-        console.log('Raw publication jobs:', data.data);
-
-        // FIX: Removed hasApplied filter because API returns applicants as count (number), not array
-        // If you need to check if user applied, the API response needs to be modified first
         const filteredJobs = data.data.filter((job: any) => {
           const jobOwnerId = job.postedBy?._id || job.postedBy;
           const currentUserId = session?.user?.id;
-
-          // Only exclude user's own jobs
-          const shouldInclude = jobOwnerId !== currentUserId;
-
-          console.log('Publication job filter:', {
-            jobId: job._id,
-            title: job.title,
-            jobOwner: jobOwnerId,
-            currentUser: currentUserId,
-            shouldInclude
-          });
-
-          return shouldInclude;
+          return jobOwnerId !== currentUserId;
         });
-
-        console.log('Filtered publication jobs count:', filteredJobs.length);
+        
         setAllJobs(filteredJobs);
-      } else {
-        console.error('Publication jobs API failed:', data.error);
-        setAllJobs([]);
       }
     } catch (error) {
       console.error('Error fetching all jobs:', error);
-      setAllJobs([]);
     }
   };
 
   const fetchMyTasks = async () => {
     try {
-      console.log('Fetching my tasks for employer...');
       const response = await fetch('/api/my-tasks?status=ongoing&limit=5');
       const data = await response.json();
-      console.log('My tasks response:', data);
-
+      
       if (data.success) {
         setMyTasks(data.data);
-
-        // Also fetch stats for EMPLOYER mode
+        
         const statsResponse = await fetch('/api/my-tasks');
         const statsData = await statsResponse.json();
-        console.log('Employer Stats response:', statsData);
-
+        
         if (statsData.success) {
           const tasks = statsData.data;
           setTaskStats({
-            active: tasks.filter((t: any) => ['accepted', 'active', 'proses'].includes(t.status) && t.assignedTo).length,
+            active: tasks.filter((t: any) => ['pending', 'accepted', 'active', 'proses'].includes(t.status) && t.assignedTo).length,
             completed: tasks.filter((t: any) => ['completed', 'selesai'].includes(t.status)).length,
-            pending: tasks.filter((t: any) =>
-              (t.status === 'open' && (t.applicants > 0 || !t.assignedTo)) ||
+            pending: tasks.filter((t: any) => 
+              (t.status === 'open' && (t.applicants > 0 || !t.assignedTo)) || 
               (t.status === 'pending' && t.assignedTo)
             ).length,
             total: tasks.length,
@@ -270,11 +261,9 @@ export default function DashboardPage() {
 
   const fetchWorkerStats = async () => {
     try {
-      console.log('Fetching worker stats...');
       const response = await fetch('/api/worker-jobs');
       const data = await response.json();
-      console.log('Worker stats response:', data);
-
+      
       if (data.success) {
         const workerJobs = data.data;
         setWorkerStats({
@@ -326,7 +315,7 @@ export default function DashboardPage() {
   };
 
   const canEditTask = (task: any) => {
-    return ['draft', 'open', 'pending'].includes(task.status);
+    return ['draft', 'open', 'pending'].includes(task.status) && !task.assignedTo;
   };
 
   const canCancelTask = (task: any) => {
@@ -372,30 +361,27 @@ export default function DashboardPage() {
   const handleAcceptOfferedJob = async (jobId: string) => {
     try {
       setProcessingJobId(jobId);
-
-      console.log('Accepting offered job:', jobId);
-
+      
       const response = await fetch(`/api/tasks/${jobId}/accept-offer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
       });
-
+      
       const data = await response.json();
-
+      
       if (data.success) {
         fetchOfferedJobs();
         fetchActiveWorkerJobs();
         fetchWorkerStats();
-        toast.success('Pekerjaan berhasil diterima! Cek di bagian pekerjaan aktif.');
+        alert('Pekerjaan berhasil diterima! Cek di bagian pekerjaan aktif.');
       } else {
-        console.error('Accept offer failed:', data.error);
-        toast.error(data.error || 'Gagal menerima pekerjaan');
+        alert(data.error || 'Gagal menerima pekerjaan');
       }
     } catch (error) {
       console.error('Error accepting offered job:', error);
-      toast.error('Terjadi kesalahan saat menerima pekerjaan');
+      alert('Terjadi kesalahan saat menerima pekerjaan');
     } finally {
       setProcessingJobId(null);
     }
@@ -404,31 +390,52 @@ export default function DashboardPage() {
   const handleRejectOfferedJob = async (jobId: string) => {
     try {
       setProcessingJobId(jobId);
-
+      
       const response = await fetch(`/api/tasks/${jobId}/reject-offer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
       });
-
+      
       const data = await response.json();
-
+      
       if (data.success) {
         fetchOfferedJobs();
-        toast.success('Pekerjaan berhasil ditolak');
+        alert('Pekerjaan berhasil ditolak');
       } else {
-        toast.error(data.error || 'Gagal menolak pekerjaan');
+        alert(data.error || 'Gagal menolak pekerjaan');
       }
     } catch (error) {
       console.error('Error rejecting offered job:', error);
-      toast.error('Terjadi kesalahan saat menolak pekerjaan');
+      alert('Terjadi kesalahan saat menolak pekerjaan');
     } finally {
       setProcessingJobId(null);
     }
   };
 
-  if (status === 'loading') {
+  const handleCreateTaskClick = () => {
+    if (!canCreateTasks) {
+      if (verificationStatus !== 'approved') {
+        if (verificationStatus === 'pending') {
+          toast.error('Verifikasi Anda sedang diproses. Harap tunggu');
+        } else if (verificationStatus === 'rejected') {
+          toast.error('Verifikasi Anda ditolak. Silakan submit ulang');
+          router.push('/verifikasi');
+        } else {
+          toast.error('Lengkapi verifikasi KTP terlebih dahulu untuk membuat tugas');
+          router.push('/verifikasi');
+        }
+      } else if (missingBasicFields.length > 0) {
+        toast.error(`Lengkapi profil terlebih dahulu: ${missingBasicFields.join(', ')}`);
+        router.push('/profil');
+      }
+      return;
+    }
+    router.push('/tugas/buat');
+  };
+
+  if (status === 'loading' || isLoadingVerification) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -449,22 +456,71 @@ export default function DashboardPage() {
           {/* User Welcome */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">
-              Halo, {session.user.name}! 👋
+              Halo, {session.user.name}! 
             </h1>
             <p className="text-gray-600">Selamat datang kembali di Naro</p>
           </div>
 
-          {/* Verification Alert */}
-          {!session.user.isVerified && (
+          {/* Verification Status Alert - NOT SUBMITTED */}
+          {verificationStatus === 'not_submitted' && (
             <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl p-4 mb-6 border-l-4 border-orange-500">
               <div className="flex gap-3">
                 <div className="text-xl">⚠️</div>
                 <div className="flex-1">
                   <div className="text-sm font-semibold text-orange-800">Verifikasi Diperlukan</div>
-                  <div className="text-xs text-orange-700">Lengkapi verifikasi untuk menggunakan semua fitur</div>
+                  <div className="text-xs text-orange-700">Lengkapi verifikasi untuk membuat tugas dan melamar pekerjaan</div>
                 </div>
                 <Link href="/verifikasi">
                   <Button size="sm" className="text-xs">Verifikasi</Button>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Verification Status Alert - PENDING */}
+          {verificationStatus === 'pending' && (
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 mb-6 border-l-4 border-blue-500">
+              <div className="flex gap-3">
+                <div className="text-xl">⏳</div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-blue-800">Menunggu Verifikasi</div>
+                  <div className="text-xs text-blue-700">Verifikasi Anda sedang diproses. Kami akan memberitahu Anda ketika sudah selesai</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Verification Status Alert - REJECTED */}
+          {verificationStatus === 'rejected' && (
+            <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-4 mb-6 border-l-4 border-red-500">
+              <div className="flex gap-3">
+                <div className="text-xl">❌</div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-red-800">Verifikasi Ditolak</div>
+                  <div className="text-xs text-red-700">Verifikasi Anda ditolak. Silakan submit ulang dengan foto yang lebih jelas</div>
+                </div>
+                <Link href="/verifikasi">
+                  <Button size="sm" className="text-xs bg-red-600 hover:bg-red-700">Coba Lagi</Button>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Profile Incomplete Alert - Only show if verified but profile incomplete */}
+          {verificationStatus === 'approved' && missingBasicFields.length > 0 && (
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 mb-6 border-l-4 border-blue-500">
+              <div className="flex gap-3">
+                <div className="text-xl">ℹ️</div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-blue-800">Lengkapi Profil</div>
+                  <div className="text-xs text-blue-700">
+                    Lengkapi: {missingBasicFields.join(', ')} untuk membuat tugas
+                  </div>
+                </div>
+                <Link href="/profil">
+                  <Button size="sm" variant="outline" className="text-xs border-blue-600 text-blue-600">
+                    Lengkapi
+                  </Button>
                 </Link>
               </div>
             </div>
@@ -476,20 +532,21 @@ export default function DashboardPage() {
               <div className="flex">
                 <button
                   onClick={() => setActiveTab('beri-kerja')}
-                  className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === 'beri-kerja'
-                    ? 'bg-primary-600 text-white'
-                    : 'text-gray-700 hover:text-gray-900'
-                    }`}
+                  className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === 'beri-kerja'
+                      ? 'bg-primary-600 text-white'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
                 >
                   🏢 Mode Pemberi Kerja
                 </button>
                 <button
                   onClick={() => setActiveTab('cari-kerja')}
-                  className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-colors ${activeTab === 'cari-kerja'
-                    ? 'bg-primary-600 text-white'
-                    : 'text-gray-700 hover:text-gray-900'
-                    }`}
-                  disabled={!canAccessFeatures}
+                  className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === 'cari-kerja'
+                      ? 'bg-primary-600 text-white'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
                 >
                   💼 Mode Cari Kerja
                 </button>
@@ -500,20 +557,38 @@ export default function DashboardPage() {
           {/* Content based on active tab */}
           {activeTab === 'beri-kerja' ? (
             <>
-              {/* Employer Mode Content */}
+              {/* Hero Card */}
               <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl p-6 mb-6 text-white shadow-lg">
                 <div className="flex justify-between items-center">
                   <div className="flex-1">
                     <h2 className="text-xl font-bold mb-2">Butuh Bantuan Pekerjaan?</h2>
                     <p className="text-sm opacity-90 mb-4">
-                      Posting tugas dan temukan pekerja terbaik
+                      Post tugas dan temukan pekerja terbaik
                     </p>
-                    <Link href="/tugas/buat">
-                      <button className="bg-white text-primary-600 px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-transform active:scale-95">
-                        <Plus className="w-4 h-4" />
-                        Buat Tugas Baru
-                      </button>
-                    </Link>
+                    <button 
+                      onClick={handleCreateTaskClick}
+                      disabled={!canCreateTasks || verificationStatus === 'pending'}
+                      className={`px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ${
+                        canCreateTasks && verificationStatus !== 'pending'
+                          ? 'bg-white text-primary-600 hover:shadow-lg active:scale-95' 
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      <Plus className="w-4 h-4" />
+                      Buat Tugas Baru
+                    </button>
+                    {!canCreateTasks && (
+                      <p className="text-xs mt-2 opacity-90">
+                        {verificationStatus === 'pending'
+                          ? '⏳ Menunggu verifikasi'
+                          : verificationStatus === 'rejected'
+                          ? '❌ Verifikasi ditolak'
+                          : verificationStatus === 'not_submitted'
+                          ? '🔒 Verifikasi diperlukan' 
+                          : `🔒 Lengkapi: ${missingBasicFields.join(', ')}`
+                        }
+                      </p>
+                    )}
                   </div>
                   <div className="text-6xl">🚀</div>
                 </div>
@@ -551,7 +626,7 @@ export default function DashboardPage() {
                     Riwayat <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>
-
+                
                 {myTasks.length > 0 ? (
                   <div className="space-y-3">
                     {myTasks.slice(0, 2).map((task) => (
@@ -561,15 +636,16 @@ export default function DashboardPage() {
                             <div className="text-sm font-semibold text-gray-900 mb-1">{task.title}</div>
                             <div className="text-xs text-gray-500">{getCategoryLabel(task.category)}</div>
                           </div>
-                          <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${task.status === 'active' ? 'bg-green-100 text-green-700' :
+                          <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${
+                            task.status === 'active' ? 'bg-green-100 text-green-700' : 
                             task.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
-                              task.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-gray-100 text-gray-700'
-                            }`}>
-                            {task.status === 'active' ? 'Active' :
-                              task.status === 'accepted' ? 'Accepted' :
-                                task.status === 'pending' ? 'Pending' :
-                                  task.status === 'open' ? 'Open' : 'Unknown'}
+                            task.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {task.status === 'active' ? 'Active' : 
+                             task.status === 'accepted' ? 'Accepted' : 
+                             task.status === 'pending' ? 'Pending' : 
+                             task.status === 'open' ? 'Open' : 'Unknown'}
                           </span>
                         </div>
                         <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
@@ -578,15 +654,7 @@ export default function DashboardPage() {
                             {task.location || 'Lokasi tidak tersedia'}
                           </div>
                           <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {task.scheduledDate ? (
-                              <>
-                                {new Date(task.scheduledDate).toLocaleDateString('id-ID', {
-                                  day: 'numeric',
-                                  month: 'short'
-                                })}, {task.scheduledTime || 'Waktu belum ditentukan'}
-                              </>
-                            ) : 'Tanggal belum ditentukan'}
+                            📅 Hari ini, 14:00
                           </div>
                         </div>
                         <div className="flex justify-between items-center pt-3 border-t border-gray-100">
@@ -603,7 +671,7 @@ export default function DashboardPage() {
                               </Link>
                             )}
                             {canCancelTask(task) && (
-                              <button
+                              <button 
                                 onClick={() => handleCancelTask(task._id, task.title)}
                                 className="bg-gray-100 text-red-600 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-red-50"
                               >
@@ -638,7 +706,7 @@ export default function DashboardPage() {
                   <div className="text-sm font-semibold text-gray-900 mb-1">Cari Tasker</div>
                   <div className="text-xs text-gray-500">Temukan pekerja</div>
                 </Link>
-                <Link href={`/riwayat?mode=employer`} className="bg-white rounded-xl p-5 text-center border-2 border-gray-100 transition-transform active:scale-95">
+                <Link href={`/riwayat?mode=${activeTab === 'beri-kerja' ? 'employer' : 'worker'}`} className="bg-white rounded-xl p-5 text-center border-2 border-gray-100 transition-transform active:scale-95">
                   <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl flex items-center justify-center text-3xl mx-auto mb-3">
                     📝
                   </div>
@@ -649,7 +717,8 @@ export default function DashboardPage() {
             </>
           ) : (
             <>
-              {/* Worker Mode Content */}
+              {/* Cari Kerja Mode */}
+              {/* Alert Card - Penghasilan */}
               <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 mb-6 border-l-4 border-blue-500">
                 <div className="flex gap-3">
                   <div className="text-xl">💰</div>
@@ -660,7 +729,27 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Availability Status */}
+              {/* Profile Incomplete Alert for Workers */}
+              {verificationStatus === 'approved' && !canAccessFeatures && (
+                <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl p-4 mb-6 border-l-4 border-yellow-500">
+                  <div className="flex gap-3">
+                    <AlertCircle className="w-5 h-5 text-yellow-700 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-yellow-800">Profil Belum Lengkap</div>
+                      <div className="text-xs text-yellow-700 mb-2">
+                        Lengkapi profil untuk melamar pekerjaan: {missingFields.join(', ')}
+                      </div>
+                      <Link href="/profil">
+                        <Button size="sm" variant="outline" className="text-xs border-yellow-600 text-yellow-700 hover:bg-yellow-100">
+                          Lengkapi Profil
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Ketersediaan */}
               <div className="bg-white rounded-xl p-4 mb-6 shadow-sm">
                 <div className="flex justify-between items-center">
                   <div className="flex-1">
@@ -671,11 +760,13 @@ export default function DashboardPage() {
                   </div>
                   <button
                     onClick={() => setIsAvailable(!isAvailable)}
-                    className={`w-14 h-8 rounded-full relative transition-colors ${isAvailable ? 'bg-primary-500' : 'bg-gray-300'
-                      }`}
+                    className={`w-14 h-8 rounded-full relative transition-colors ${
+                      isAvailable ? 'bg-primary-500' : 'bg-gray-300'
+                    }`}
                   >
-                    <div className={`absolute w-6 h-6 bg-white rounded-full top-1 transition-transform shadow-sm ${isAvailable ? 'right-1' : 'left-1'
-                      }`}></div>
+                    <div className={`absolute w-6 h-6 bg-white rounded-full top-1 transition-transform shadow-sm ${
+                      isAvailable ? 'right-1' : 'left-1'
+                    }`}></div>
                   </button>
                 </div>
               </div>
@@ -712,7 +803,7 @@ export default function DashboardPage() {
                     Riwayat <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>
-
+                
                 {activeWorkerJobs.length > 0 ? (
                   <div className="space-y-3">
                     {activeWorkerJobs.map((job) => (
@@ -725,25 +816,26 @@ export default function DashboardPage() {
                               {job.poster?.isVerified && <Star className="w-3 h-3 text-yellow-500 fill-current" />}
                             </div>
                           </div>
-                          <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${job.isAssignedWorker && job.status === 'active' ? 'bg-green-100 text-green-700' :
+                          <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${
+                            job.isAssignedWorker && job.status === 'active' ? 'bg-green-100 text-green-700' : 
                             job.isAssignedWorker && job.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
-                              !job.isAssignedWorker && job.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                job.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
-                                  job.status === 'active' ? 'bg-green-100 text-green-700' :
-                                    'bg-gray-100 text-gray-700'
-                            }`}>
+                            !job.isAssignedWorker && job.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                            job.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
+                            job.status === 'active' ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
                             {job.isAssignedWorker ? (
-                              job.status === 'active' ? 'Sedang Berlangsung' :
-                                job.status === 'accepted' ? 'Diterima' :
-                                  job.status === 'pending' ? 'Menunggu' :
-                                    job.status === 'completed' ? 'Selesai' :
-                                      job.status === 'rejected' ? 'Ditolak' : 'Unknown'
+                              job.status === 'active' ? 'Sedang Berlangsung' : 
+                              job.status === 'accepted' ? 'Diterima' : 
+                              job.status === 'pending' ? 'Menunggu' : 
+                              job.status === 'completed' ? 'Selesai' :
+                              job.status === 'rejected' ? 'Ditolak' : 'Unknown'
                             ) : (
                               job.status === 'pending' ? 'Menunggu' :
-                                job.status === 'accepted' ? 'Diterima' :
-                                  job.status === 'active' ? 'Sedang Berlangsung' :
-                                    job.status === 'completed' ? 'Selesai' :
-                                      job.status === 'rejected' ? 'Ditolak' : 'Unknown'
+                              job.status === 'accepted' ? 'Diterima' :
+                              job.status === 'active' ? 'Sedang Berlangsung' :
+                              job.status === 'completed' ? 'Selesai' :
+                              job.status === 'rejected' ? 'Ditolak' : 'Unknown'
                             )}
                           </span>
                         </div>
@@ -786,22 +878,24 @@ export default function DashboardPage() {
               {/* Tab Section */}
               <div className="mb-6">
                 <div className="grid grid-cols-2 gap-3 mb-5">
-                  <button
+                  <button 
                     onClick={() => setJobTab('permintaan')}
-                    className={`py-3 px-4 border-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${jobTab === 'permintaan'
-                      ? 'border-primary-500 bg-gradient-to-r from-blue-50 to-blue-100 text-primary-600'
-                      : 'border-gray-200 bg-white text-gray-600'
-                      }`}
+                    className={`py-3 px-4 border-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+                      jobTab === 'permintaan' 
+                        ? 'border-primary-500 bg-gradient-to-r from-blue-50 to-blue-100 text-primary-600' 
+                        : 'border-gray-200 bg-white text-gray-600'
+                    }`}
                   >
                     <span className="text-lg">🔍</span>
                     Permintaan
                   </button>
-                  <button
+                  <button 
                     onClick={() => setJobTab('publikasi')}
-                    className={`py-3 px-4 border-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${jobTab === 'publikasi'
-                      ? 'border-primary-500 bg-gradient-to-r from-blue-50 to-blue-100 text-primary-600'
-                      : 'border-gray-200 bg-white text-gray-600'
-                      }`}
+                    className={`py-3 px-4 border-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+                      jobTab === 'publikasi' 
+                        ? 'border-primary-500 bg-gradient-to-r from-blue-50 to-blue-100 text-primary-600' 
+                        : 'border-gray-200 bg-white text-gray-600'
+                    }`}
                   >
                     <span className="text-lg">📢</span>
                     Publikasi
@@ -819,7 +913,7 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                {/* Available Jobs based on Tab */}
+                {/* Available Jobs */}
                 {jobTab === 'permintaan' ? (
                   offeredJobs.length > 0 ? (
                     <div className="space-y-3">
@@ -850,22 +944,31 @@ export default function DashboardPage() {
                               {formatCurrency(job.budget)}
                             </div>
                             <div className="flex gap-2">
-                              <Link href={`/pekerjaan/${job._id}`}>
+                              <Link href={`/pekerjaan/${job._id}?from=dashboard`}>
                                 <button className="bg-white text-gray-600 border-2 border-gray-300 px-3 py-1 rounded-lg text-xs font-semibold">
                                   Detail
                                 </button>
                               </Link>
-                              <button
+                              <button 
                                 onClick={() => handleRejectOfferedJob(job._id)}
-                                disabled={processingJobId === job._id}
-                                className="bg-white text-red-600 border-2 border-red-600 px-3 py-1 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                disabled={processingJobId === job._id || !canAccessFeatures}
+                                className={`bg-white border-2 px-3 py-1 rounded-lg text-xs font-semibold ${
+                                  !canAccessFeatures 
+                                    ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                                    : 'border-red-600 text-red-600 hover:bg-red-50'
+                                }`}
                               >
                                 {processingJobId === job._id ? 'Menolak...' : 'Tolak'}
                               </button>
-                              <button
+                              <button 
                                 onClick={() => handleAcceptOfferedJob(job._id)}
-                                disabled={processingJobId === job._id}
-                                className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-3 py-1 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                disabled={processingJobId === job._id || !canAccessFeatures}
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                                  !canAccessFeatures
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:shadow-lg'
+                                }`}
+                                title={!canAccessFeatures ? 'Lengkapi profil untuk menerima pekerjaan' : ''}
                               >
                                 {processingJobId === job._id ? 'Menerima...' : 'Terima'}
                               </button>
@@ -884,44 +987,52 @@ export default function DashboardPage() {
                   allJobs.length > 0 ? (
                     <div className="space-y-3">
                       {allJobs.map((job) => (
-                        <div key={job._id} className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
-                              <div className="text-sm font-semibold text-gray-900 mb-1">{job.title}</div>
-                              <div className="text-xs text-gray-500 flex items-center gap-1">
-                                <span>{job.postedBy?.name || 'Anonymous'}</span>
-                                <span className="text-primary-500">✓</span>
+                        <Link key={job._id} href={`/pekerjaan/${job._id}?from=dashboard`}>
+                          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1">
+                                <div className="text-sm font-semibold text-gray-900 mb-1">{job.title}</div>
+                                <div className="text-xs text-gray-500 flex items-center gap-1">
+                                  <span>{job.poster?.name || job.postedBy?.name || 'Anonymous'}</span>
+                                  {(job.poster?.isVerified || job.postedBy?.isVerified) && <span className="text-primary-500">✓</span>}
+                                </div>
+                              </div>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">
+                                📝 Publikasi
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+                              <div className="flex items-center gap-1">
+                                📍 {job.location || 'Lokasi tidak tersedia'}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                📅 {new Date(job.createdAt).toLocaleDateString('id-ID')}
                               </div>
                             </div>
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold">
-                              📝 Publikasi
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                            <div className="flex items-center gap-1">
-                              📍 {job.location || 'Lokasi tidak tersedia'}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              📅 {new Date(job.createdAt).toLocaleDateString('id-ID')}
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                            <div className="text-lg font-bold text-primary-600">
-                              {formatCurrency(job.budget)}
-                            </div>
-                            <Link href={`/pekerjaan/${job._id}`}>
-                              <button className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold">
+                            <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                              <div className="text-lg font-bold text-primary-600">
+                                {formatCurrency(job.budget)}
+                              </div>
+                              <button className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:shadow-lg transition-shadow">
                                 Lihat Detail
                               </button>
-                            </Link>
+                            </div>
                           </div>
-                        </div>
+                        </Link>
                       ))}
+                      
+                      {/* Show more link if there are jobs */}
+                      <div className="text-center pt-2">
+                        <Link href="/pekerjaan" className="text-sm text-primary-600 font-semibold hover:underline">
+                          Lihat Semua Pekerjaan Publikasi →
+                        </Link>
+                      </div>
                     </div>
                   ) : (
                     <div className="bg-white rounded-xl p-8 text-center text-gray-500">
                       <div className="text-4xl mb-3">📝</div>
                       <div className="text-sm font-medium">Belum ada pekerjaan publikasi tersedia</div>
+                      <div className="text-xs text-gray-400 mt-1">Cek lagi nanti untuk pekerjaan baru</div>
                     </div>
                   )
                 )}
@@ -931,7 +1042,7 @@ export default function DashboardPage() {
         </div>
       </main>
       <BottomNav />
-
+      
       <CancelTaskModal
         isOpen={cancelModal.isOpen}
         onClose={() => setCancelModal({ isOpen: false, taskId: '', taskTitle: '' })}

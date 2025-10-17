@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProfileGuard } from '@/components/guards/ProfileGuard';
+import { WorkerRecommendation } from '@/components/features/tasks/WorkerRecommendation';
 
 const categories = [
   { value: 'kebersihan', label: 'Kebersihan & Perawatan' },
@@ -48,6 +49,8 @@ export default function CreateTaskPage() {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [showMapModal, setShowMapModal] = useState(false);
   const [tempCoordinates, setTempCoordinates] = useState({ lat: 0, lng: 0 });
+  const [selectedWorker, setSelectedWorker] = useState<any>(null);
+  const [showRecommendations, setShowRecommendations] = useState(false);
 
   // Check if editing existing task (from URL params)
   useEffect(() => {
@@ -206,6 +209,12 @@ export default function CreateTaskPage() {
     setPhotoPreviews(photoPreviews.filter((_, i) => i !== index));
   };
 
+  const handleWorkerSelect = (worker: any) => {
+    setSelectedWorker(worker);
+    // Keep find_worker as search method when worker is selected from AI recommendation
+    toast.success(`Pekerja rekomendasi AI: ${worker.name} telah dipilih!`);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -264,7 +273,10 @@ export default function CreateTaskPage() {
         // Arahkan berdasarkan metode pencarian yang dipilih
         if (formData.searchMethod === 'find_worker') {
           // Jika pilih "Cari Pekerja", arahkan ke halaman cari pekerja
-          router.push(`/tugas/${taskId}/cari-pekerja`);
+          const url = selectedWorker 
+            ? `/tugas/${taskId}/cari-pekerja?workerId=${selectedWorker._id}`
+            : `/tugas/${taskId}/cari-pekerja`;
+          router.push(url);
         } else {
           // Jika pilih "Publikasikan", langsung ke perjanjian
           router.push(`/tugas/${taskId}/perjanjian`);
@@ -624,7 +636,10 @@ export default function CreateTaskPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div
-                      onClick={() => setFormData({ ...formData, searchMethod: 'publication' })}
+                      onClick={() => {
+                        setFormData({ ...formData, searchMethod: 'publication' });
+                        setSelectedWorker(null); // Clear selected worker when switching to publication
+                      }}
                       className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
                         formData.searchMethod === 'publication'
                           ? 'border-primary-500 bg-primary-50'
@@ -652,7 +667,7 @@ export default function CreateTaskPage() {
                         <div className="text-3xl mb-2">🔎</div>
                         <h4 className="font-semibold mb-1">Cari Pekerja</h4>
                         <p className="text-xs text-gray-600">
-                          Pilih pekerja langsung dari daftar
+                          Gunakan AI untuk rekomendasi pekerja terbaik
                         </p>
                       </div>
                     </div>
@@ -662,16 +677,47 @@ export default function CreateTaskPage() {
                     <span className="text-blue-500">💡</span>
                     <div className="text-sm text-blue-700">
                       <p className="font-medium mb-1">
-                        {formData.searchMethod === 'publication' ? 'Publikasikan' : 'Cari Pekerja'}:
+                        {formData.searchMethod === 'publication' ? 'Mode Publikasikan' : 'Mode Cari Pekerja Cerdas'}:
                       </p>
                       <p>
                         {formData.searchMethod === 'publication'
                           ? 'Tugas akan ditampilkan dan pekerja bisa melamar. Anda bisa memilih dari pelamar yang tersedia.'
-                          : 'Anda bisa memilih pekerja langsung dari daftar pekerja yang tersedia berdasarkan rating dan pengalaman.'}
+                          : 'Sistem AI akan menganalisis deskripsi pekerjaan Anda dan memberikan rekomendasi pekerja terbaik berdasarkan keahlian, pengalaman, rating, dan lokasi.'}
                       </p>
                     </div>
                   </div>
                 </div>
+
+                {/* Rekomendasi Pekerja Cerdas - Hanya muncul saat "Cari Pekerja" dipilih */}
+                {formData.searchMethod === 'find_worker' && (
+                  <div className="space-y-4">
+                    <WorkerRecommendation
+                      jobData={{
+                        title: formData.title,
+                        description: formData.description,
+                        category: formData.category,
+                        location: formData.location,
+                        locationCoordinates: formData.locationCoordinates
+                      }}
+                      onWorkerSelect={handleWorkerSelect}
+                    />
+                    
+                    {selectedWorker && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <span className="text-green-600">✅</span>
+                          <span className="font-medium text-green-900">
+                            Pekerja Terpilih: {selectedWorker.name}
+                          </span>
+                        </div>
+                        <p className="text-sm text-green-700">
+                          Tugas akan langsung diarahkan ke {selectedWorker.name} setelah dibuat.
+                          Anda bisa mengubah pilihan dengan memilih pekerja lain dari rekomendasi di atas.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex space-x-4">
                   <Button

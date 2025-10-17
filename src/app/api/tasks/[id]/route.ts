@@ -40,31 +40,13 @@ export async function GET(
     }
 
     // Format applicants data to include user info
-    const taskObject = updatedTask.toObject();
-    
-    // FIX: Add consistent field naming for poster
     const formattedTask = {
-      ...taskObject,
-      // Keep original field
-      posterId: taskObject.posterId,
-      // Add alias fields for consistency across frontend
-      poster: taskObject.posterId,
-      postedBy: taskObject.posterId,
-      // Format applicants
+      ...updatedTask.toObject(),
       applicants: updatedTask.applicants?.map((app: any) => ({
         ...app.toObject(),
         user: app.userId
       }))
     };
-
-    console.log('=== TASK DETAIL API ===');
-    console.log('Task ID:', params.id);
-    console.log('Poster Info:', {
-      posterId: formattedTask.posterId,
-      poster: formattedTask.poster,
-      postedBy: formattedTask.postedBy,
-      name: formattedTask.posterId?.name
-    });
 
     return NextResponse.json({
       success: true,
@@ -108,13 +90,8 @@ export async function PUT(
       const description = formData.get('description') as string;
       const category = formData.get('category') as string;
       const location = formData.get('location') as string;
-      const locationCoordinates = formData.get('locationCoordinates') as string;
       const scheduledDate = formData.get('scheduledDate') as string;
       const scheduledTime = formData.get('scheduledTime') as string;
-      const startDate = formData.get('startDate') as string;
-      const startTime = formData.get('startTime') as string;
-      const endDate = formData.get('endDate') as string;
-      const endTime = formData.get('endTime') as string;
       const estimatedDuration = formData.get('estimatedDuration') as string;
       const budget = formData.get('budget') as string;
       const pricingType = formData.get('pricingType') as string;
@@ -125,57 +102,19 @@ export async function PUT(
         description,
         category,
         location,
-        budget: budget ? parseFloat(budget) : undefined,
+        scheduledDate: new Date(scheduledDate),
+        scheduledTime,
+        estimatedDuration,
+        budget: parseFloat(budget),
         pricingType: pricingType || 'fixed',
-        searchMethod: searchMethod || 'publication',
+        searchMethod: searchMethod || 'publish',
       };
-
-      // Handle locationCoordinates if present
-      if (locationCoordinates) {
-        try {
-          updateData.locationCoordinates = JSON.parse(locationCoordinates);
-        } catch (e) {
-          console.error('Error parsing locationCoordinates:', e);
-        }
-      }
-
-      // FIXED: Handle all date and time fields properly
-      // Priority: startDate/startTime/endDate/endTime (from edit form)
-      // Fallback: scheduledDate/scheduledTime (legacy field names)
-      
-      if (startDate) {
-        updateData.startDate = new Date(startDate);
-        updateData.scheduledDate = new Date(startDate); // Keep sync with legacy field
-      } else if (scheduledDate) {
-        updateData.startDate = new Date(scheduledDate);
-        updateData.scheduledDate = new Date(scheduledDate);
-      }
-
-      if (startTime) {
-        updateData.startTime = startTime;
-        updateData.scheduledTime = startTime; // Keep sync with legacy field
-      } else if (scheduledTime) {
-        updateData.startTime = scheduledTime;
-        updateData.scheduledTime = scheduledTime;
-      }
-
-      if (endDate) {
-        updateData.endDate = new Date(endDate);
-      }
-
-      if (endTime) {
-        updateData.endTime = endTime;
-      }
-
-      if (estimatedDuration) {
-        updateData.estimatedDuration = estimatedDuration;
-      }
 
       // Handle photo uploads if any
       const existingPhotos = formData.getAll('existingPhotos') as string[];
       const newPhotoFiles = formData.getAll('photos') as File[];
       
-      let photos = [...existingPhotos.filter(p => p && p.trim() !== '')]; // Keep existing photos, filter empty strings
+      let photos = [...existingPhotos]; // Keep existing photos
       
       if (newPhotoFiles && newPhotoFiles.length > 0) {
         for (const file of newPhotoFiles) {
@@ -192,45 +131,18 @@ export async function PUT(
       }
       
       updateData.photos = photos;
-
-      console.log('=== UPDATE TASK (FORM DATA) ===');
-      console.log('Received startDate:', startDate);
-      console.log('Received startTime:', startTime);
-      console.log('Received endDate:', endDate);
-      console.log('Received endTime:', endTime);
-      console.log('Update data:', updateData);
     } else {
       // Handle JSON data (from worker assignment, payment, status updates)
       const body = await request.json();
       updateData = body;
       
-      // FIXED: Sync all date/time fields properly
-      if (updateData.startDate) {
-        updateData.scheduledDate = updateData.startDate;
-        if (typeof updateData.startDate === 'string') {
-          updateData.startDate = new Date(updateData.startDate);
-          updateData.scheduledDate = new Date(updateData.startDate);
-        }
-      }
-      
-      if (updateData.startTime) {
-        updateData.scheduledTime = updateData.startTime;
-      }
-
-      if (updateData.endDate && typeof updateData.endDate === 'string') {
-        updateData.endDate = new Date(updateData.endDate);
-      }
-
-      // Convert other string dates to Date objects if needed
+      // Convert string dates to Date objects if needed
       if (updateData.scheduledDate && typeof updateData.scheduledDate === 'string') {
         updateData.scheduledDate = new Date(updateData.scheduledDate);
       }
       if (updateData.paymentDate && typeof updateData.paymentDate === 'string') {
         updateData.paymentDate = new Date(updateData.paymentDate);
       }
-
-      console.log('=== UPDATE TASK (JSON) ===');
-      console.log('Update data:', updateData);
     }
 
     // Find the task and verify ownership
@@ -248,28 +160,13 @@ export async function PUT(
       );
     }
 
-    // FIXED: Remove undefined values to prevent overwriting with undefined
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined) {
-        delete updateData[key];
-      }
-    });
-
     // Update the task
     const updatedTask = await Task.findByIdAndUpdate(
       params.id,
-      { $set: updateData }, // Use $set to only update provided fields
-      { new: true, runValidators: true }
+      updateData,
+      { new: true }
     ).populate('posterId', 'name email image rating isVerified')
      .populate('assignedTo', 'name email image rating isVerified');
-
-    console.log('=== TASK UPDATED ===');
-    console.log('Updated task dates:', {
-      startDate: updatedTask?.startDate,
-      startTime: updatedTask?.startTime,
-      endDate: updatedTask?.endDate,
-      endTime: updatedTask?.endTime,
-    });
 
     return NextResponse.json({
       success: true,
@@ -332,3 +229,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
+}

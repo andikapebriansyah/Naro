@@ -7,7 +7,7 @@ import { Header } from '@/components/layouts/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Upload, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Upload, CheckCircle, XCircle, Clock, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function VerificationPage() {
@@ -18,10 +18,17 @@ export default function VerificationPage() {
   const [ktpPreview, setKtpPreview] = useState<string>('');
   const [selfiePreview, setSelfiePreview] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [extractedData, setExtractedData] = useState<any>(null);
 
   const handleKtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file size
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Ukuran file maksimal 5MB');
+        return;
+      }
+
       setKtpImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -34,6 +41,12 @@ export default function VerificationPage() {
   const handleSelfieChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file size
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Ukuran file maksimal 5MB');
+        return;
+      }
+
       setSelfieImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -52,6 +65,9 @@ export default function VerificationPage() {
     }
 
     setIsSubmitting(true);
+    setExtractedData(null);
+
+    const loadingToast = toast.loading('Memproses verifikasi dan membaca KTP...');
 
     try {
       const formData = new FormData();
@@ -65,13 +81,35 @@ export default function VerificationPage() {
 
       const data = await response.json();
 
+      toast.dismiss(loadingToast);
+
       if (data.success) {
-        toast.success('Verifikasi berhasil diajukan!');
-        router.push('/dashboard');
+        // Show extracted data if available
+        const extractedKTPData = data.data?.extractedData;
+        console.log('API Response data:', data); // Debug log
+        
+        if (extractedKTPData && Object.keys(extractedKTPData).length > 0) {
+          setExtractedData(extractedKTPData);
+          toast.success('Verifikasi berhasil diajukan! Data KTP berhasil dibaca.', {
+            duration: 5000,
+          });
+        } else {
+          toast.success('Verifikasi berhasil diajukan!');
+        }
+
+        // Redirect after 2 seconds
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 2000);
       } else {
-        toast.error(data.error || 'Terjadi kesalahan');
+        toast.error(data.error || 'Terjadi kesalahan', {
+          description: data.details?.missingFields 
+            ? `Field yang tidak terdeteksi: ${data.details.missingFields.join(', ')}`
+            : undefined,
+        });
       }
     } catch (error) {
+      toast.dismiss(loadingToast);
       toast.error('Terjadi kesalahan saat mengirim verifikasi');
     } finally {
       setIsSubmitting(false);
@@ -91,7 +129,7 @@ export default function VerificationPage() {
                 </div>
                 <div>
                   <CardTitle>Verifikasi Identitas</CardTitle>
-                  <CardDescription>Upload KTP untuk verifikasi akun</CardDescription>
+                  <CardDescription>Upload KTP untuk verifikasi akun (dengan OCR otomatis)</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -101,10 +139,98 @@ export default function VerificationPage() {
                 <h3 className="font-semibold text-blue-900 mb-2">
                   🔒 Mengapa perlu verifikasi?
                 </h3>
-                <p className="text-sm text-blue-800">
+                <p className="text-sm text-blue-800 mb-2">
                   Verifikasi identitas diperlukan untuk memastikan keamanan dan kepercayaan semua pengguna Naro. Data Anda akan dijaga kerahasiaannya.
                 </p>
+                <p className="text-sm text-blue-700 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>Sistem akan otomatis membaca data KTP Anda menggunakan OCR</span>
+                </p>
               </div>
+
+              {/* Extracted Data Display */}
+              {extractedData && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                  <h3 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5" />
+                    Data KTP Berhasil Dibaca
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {extractedData.nik && (
+                      <div>
+                        <span className="text-gray-600">NIK:</span>
+                        <p className="font-medium">{extractedData.nik}</p>
+                      </div>
+                    )}
+                    {extractedData.nama && (
+                      <div>
+                        <span className="text-gray-600">Nama:</span>
+                        <p className="font-medium">{extractedData.nama}</p>
+                      </div>
+                    )}
+                    {extractedData.tempatLahir && (
+                      <div>
+                        <span className="text-gray-600">Tempat Lahir:</span>
+                        <p className="font-medium">{extractedData.tempatLahir}</p>
+                      </div>
+                    )}
+                    {extractedData.tanggalLahir && (
+                      <div>
+                        <span className="text-gray-600">Tanggal Lahir:</span>
+                        <p className="font-medium">{extractedData.tanggalLahir}</p>
+                      </div>
+                    )}
+                    {extractedData.jenisKelamin && (
+                      <div>
+                        <span className="text-gray-600">Jenis Kelamin:</span>
+                        <p className="font-medium">{extractedData.jenisKelamin}</p>
+                      </div>
+                    )}
+                    {extractedData.alamat && (
+                      <div className="col-span-2">
+                        <span className="text-gray-600">Alamat:</span>
+                        <p className="font-medium">{extractedData.alamat}</p>
+                      </div>
+                    )}
+                    {extractedData.rtRw && (
+                      <div>
+                        <span className="text-gray-600">RT/RW:</span>
+                        <p className="font-medium">{extractedData.rtRw}</p>
+                      </div>
+                    )}
+                    {extractedData.agama && (
+                      <div>
+                        <span className="text-gray-600">Agama:</span>
+                        <p className="font-medium">{extractedData.agama}</p>
+                      </div>
+                    )}
+                    {extractedData.statusPerkawinan && (
+                      <div>
+                        <span className="text-gray-600">Status Perkawinan:</span>
+                        <p className="font-medium">{extractedData.statusPerkawinan}</p>
+                      </div>
+                    )}
+                    {extractedData.pekerjaan && (
+                      <div>
+                        <span className="text-gray-600">Pekerjaan:</span>
+                        <p className="font-medium">{extractedData.pekerjaan}</p>
+                      </div>
+                    )}
+                    {extractedData.kewarganegaraan && (
+                      <div>
+                        <span className="text-gray-600">Kewarganegaraan:</span>
+                        <p className="font-medium">{extractedData.kewarganegaraan}</p>
+                      </div>
+                    )}
+                    {extractedData.berlakuHingga && (
+                      <div>
+                        <span className="text-gray-600">Berlaku Hingga:</span>
+                        <p className="font-medium">{extractedData.berlakuHingga}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Upload KTP */}
@@ -119,6 +245,7 @@ export default function VerificationPage() {
                       onChange={handleKtpChange}
                       className="hidden"
                       id="ktp-upload"
+                      disabled={isSubmitting}
                     />
                     <label htmlFor="ktp-upload" className="cursor-pointer">
                       {ktpPreview ? (
@@ -138,6 +265,12 @@ export default function VerificationPage() {
                       )}
                     </label>
                   </div>
+                  {ktpImage && (
+                    <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4" />
+                      Foto KTP siap: {ktpImage.name}
+                    </p>
+                  )}
                 </div>
 
                 {/* Upload Selfie */}
@@ -152,6 +285,7 @@ export default function VerificationPage() {
                       onChange={handleSelfieChange}
                       className="hidden"
                       id="selfie-upload"
+                      disabled={isSubmitting}
                     />
                     <label htmlFor="selfie-upload" className="cursor-pointer">
                       {selfiePreview ? (
@@ -171,6 +305,12 @@ export default function VerificationPage() {
                       )}
                     </label>
                   </div>
+                  {selfieImage && (
+                    <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4" />
+                      Foto Selfie siap: {selfieImage.name}
+                    </p>
+                  )}
                 </div>
 
                 {/* Requirements */}
@@ -193,6 +333,10 @@ export default function VerificationPage() {
                       <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                       <span>Pencahayaan yang cukup</span>
                     </li>
+                    <li className="flex items-start space-x-2 text-sm">
+                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <span>Sistem akan otomatis membaca NIK, Nama, dan data lainnya</span>
+                    </li>
                   </ul>
                 </div>
 
@@ -202,7 +346,14 @@ export default function VerificationPage() {
                   size="lg"
                   disabled={!ktpImage || !selfieImage || isSubmitting}
                 >
-                  {isSubmitting ? 'Mengirim...' : 'Kirim Verifikasi'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Memproses & Membaca KTP...
+                    </>
+                  ) : (
+                    'Kirim Verifikasi'
+                  )}
                 </Button>
               </form>
 

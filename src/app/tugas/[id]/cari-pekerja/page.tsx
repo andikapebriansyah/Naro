@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Header } from '@/components/layouts/Header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,8 +14,10 @@ import { toast } from 'sonner';
 export default function TaskWorkerSearchPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const taskId = params.id as string;
+  const recommendedWorkerId = searchParams.get('workerId');
 
   const [task, setTask] = useState<any>(null);
   const [workers, setWorkers] = useState<any[]>([]);
@@ -35,6 +37,22 @@ export default function TaskWorkerSearchPage() {
       fetchWorkers();
     }
   }, [task, session]);
+
+  // Handle pre-selected worker from recommendation
+  useEffect(() => {
+    if (recommendedWorkerId && workers.length > 0) {
+      const preSelectedWorker = workers.find(w => w._id === recommendedWorkerId);
+      if (preSelectedWorker) {
+        setSelectedWorker(recommendedWorkerId);
+        setSelectedWorkerData(preSelectedWorker);
+        // Don't automatically show detail modal, just show success message
+        toast.success(`🤖 Pekerja rekomendasi AI terpilih: ${preSelectedWorker.name}`, {
+          description: 'Scroll ke bawah untuk melanjutkan atau lihat detail pekerja lain',
+          duration: 5000
+        });
+      }
+    }
+  }, [recommendedWorkerId, workers]);
 
   const fetchTask = async () => {
     try {
@@ -266,6 +284,11 @@ export default function TaskWorkerSearchPage() {
                           <h3 className="font-semibold truncate">{worker.name}</h3>
                           {worker.isVerified && (
                             <span className="text-blue-500">✓</span>
+                          )}
+                          {recommendedWorkerId === worker._id && (
+                            <span className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                              🤖 AI
+                            </span>
                           )}
                           {selectedWorker === worker._id && (
                             <span className="ml-auto text-primary-600 font-medium">
@@ -544,7 +567,14 @@ export default function TaskWorkerSearchPage() {
               <div className="text-sm">
                 {selectedWorker ? (
                   <div>
-                    <p className="text-gray-600">Pekerja dipilih:</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-gray-600">Pekerja dipilih:</p>
+                      {recommendedWorkerId === selectedWorker && (
+                        <span className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                          🤖 Rekomendasi AI
+                        </span>
+                      )}
+                    </div>
                     <p className="font-semibold">
                       {workers.find((w) => w._id === selectedWorker)?.name}
                     </p>
@@ -556,9 +586,13 @@ export default function TaskWorkerSearchPage() {
               <Button
                 onClick={handleContinue}
                 disabled={!selectedWorker}
-                className="min-w-[150px]"
+                className={`min-w-[150px] ${
+                  recommendedWorkerId === selectedWorker 
+                    ? 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600' 
+                    : ''
+                }`}
               >
-                Tugaskan Pekerja ✓
+                {recommendedWorkerId === selectedWorker ? '🤖 Tugaskan (AI)' : 'Tugaskan Pekerja'} ✓
               </Button>
             </div>
           </div>

@@ -89,11 +89,10 @@ export async function POST(
     task.updatedAt = new Date();
     
     // Store agreement details
-    if (!task.workerAgreement) {
-      task.workerAgreement = {};
-    }
-    task.workerAgreement.agreedToTerms = agreedToTerms || false;
-    task.workerAgreement.agreedAt = agreedAt ? new Date(agreedAt) : new Date();
+    task.workerAgreement = {
+      agreedToTerms: agreedToTerms || false,
+      agreedAt: agreedAt ? new Date(agreedAt) : new Date()
+    };
 
     await task.save();
 

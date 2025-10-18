@@ -44,8 +44,8 @@ export async function POST(request: Request) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     
     // Format items
-    const formattedItems = Array.isArray(items) 
-      ? items.filter(item => item.name && item.price > 0).map(item => ({
+    const formattedItems: Array<{name: string; quantity: number; price: number}> = Array.isArray(items) 
+      ? items.filter((item: any) => item.name && item.price > 0).map((item: any) => ({
           name: String(item.name),
           quantity: Number(item.quantity) || 1,
           price: Number(item.price)
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       description: description || `Pembayaran untuk tugas #${taskId}`,
       successRedirectUrl: `${appUrl}/tugas/${taskId}/pembayaran/success`,
       failureRedirectUrl: `${appUrl}/tugas/${taskId}/pembayaran/failed`,
-      items: formattedItems
+      items: formattedItems as any
     });
 
     console.log('✅ Invoice created:', invoice.id);

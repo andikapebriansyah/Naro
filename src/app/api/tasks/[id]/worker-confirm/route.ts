@@ -44,7 +44,7 @@ export async function POST(
     }
 
     // Check if task is in waiting status
-    if (task.status !== 'menunggu') {
+    if (task.status !== 'pending') {
       return NextResponse.json(
         { success: false, error: 'Status tugas tidak valid untuk konfirmasi' },
         { status: 400 }
@@ -53,7 +53,7 @@ export async function POST(
 
     if (action === 'accept') {
       // Worker accepts the task
-      task.status = 'proses';
+      task.status = 'active';
     } else {
       // Worker rejects the task
       task.assignedTo = null;

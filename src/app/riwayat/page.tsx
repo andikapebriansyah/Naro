@@ -1,7 +1,7 @@
 // src/app/riwayat/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layouts/Header';
@@ -117,7 +117,7 @@ const getTabStatusText = (tab: TabType): string => {
   return textMap[tab];
 };
 
-export default function HistoryPage() {
+function HistoryPageContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const modeParam = searchParams.get('mode') as ModeType;
@@ -1294,5 +1294,20 @@ export default function HistoryPage() {
         userType={reviewModal.userType}
       />
     </>
+  );
+}
+
+export default function HistoryPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Memuat...</p>
+        </div>
+      </div>
+    }>
+      <HistoryPageContent />
+    </Suspense>
   );
 }

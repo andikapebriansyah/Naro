@@ -4,7 +4,24 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
-import { Menu, Bell, User, LogOut, Settings, Check, X } from 'lucide-react';
+import { 
+  Menu, 
+  Bell, 
+  User, 
+  LogOut, 
+  Settings, 
+  Check, 
+  X, 
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  DollarSign,
+  Users,
+  Clock,
+  Shield,
+  MessageSquare,
+  Info
+} from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
 interface Notification {
@@ -90,20 +107,20 @@ export function Header() {
   };
 
   const getNotificationIcon = (type: string) => {
-    const icons: { [key: string]: string } = {
-      task_assigned: '📋',
-      task_completed: '✅',
-      task_cancelled: '❌',
-      payment_received: '💰',
-      new_applicant: '👤',
-      application_accepted: '✅',
-      application_rejected: '❌',
-      task_completion_request: '⏰',
-      verification_status: '🔐',
-      new_message: '💬',
-      system: '🔔',
+    const iconMap: { [key: string]: JSX.Element } = {
+      task_assigned: <Calendar className="w-4 h-4 text-blue-600" />,
+      task_completed: <CheckCircle2 className="w-4 h-4 text-green-600" />,
+      task_cancelled: <XCircle className="w-4 h-4 text-red-600" />,
+      payment_received: <DollarSign className="w-4 h-4 text-emerald-600" />,
+      new_applicant: <Users className="w-4 h-4 text-purple-600" />,
+      application_accepted: <CheckCircle2 className="w-4 h-4 text-green-600" />,
+      application_rejected: <XCircle className="w-4 h-4 text-red-600" />,
+      task_completion_request: <Clock className="w-4 h-4 text-orange-600" />,
+      verification_status: <Shield className="w-4 h-4 text-blue-600" />,
+      new_message: <MessageSquare className="w-4 h-4 text-indigo-600" />,
+      system: <Info className="w-4 h-4 text-gray-600" />,
     };
-    return icons[type] || '🔔';
+    return iconMap[type] || <Bell className="w-4 h-4 text-gray-600" />;
   };
 
   const getRelativeTime = (date: string) => {
@@ -156,19 +173,17 @@ export function Header() {
 
                 {/* Notification Dropdown */}
                 {showNotifications && (
-                  <div className="absolute right-0 top-full mt-3 w-80 sm:w-96 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-200/50 max-h-[500px] overflow-hidden flex flex-col z-[100] animate-in slide-in-from-top-2 duration-200">
+                  <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 max-h-[500px] overflow-hidden flex flex-col z-[100] animate-slide-down">
                     {/* Header */}
-                    <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50 flex justify-between items-center">
-                      <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                        <Bell className="h-4 w-4 text-primary-600" />
-                        Notifikasi
-                      </h3>
+                    <div className="p-4 border-b border-gray-200/50 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 flex justify-between items-center">
+                      <h3 className="font-semibold text-gray-900">Notifikasi</h3>
                       {unreadCount > 0 && (
                         <button
                           onClick={markAllAsRead}
-                          className="text-xs text-primary-600 hover:text-primary-700 font-semibold px-3 py-1 rounded-full bg-primary-50 hover:bg-primary-100 transition-all duration-200"
+                          className="text-xs text-blue-600 hover:text-blue-700 font-semibold bg-white/70 hover:bg-white/90 px-3 py-2 rounded-lg transition-all duration-200 shadow-sm"
                         >
-                          Tandai Semua
+                          <Check className="w-3 h-3 inline mr-1" />
+                          Tandai Dibaca
                         </button>
                       )}
                     </div>
@@ -177,18 +192,17 @@ export function Header() {
                     <div className="overflow-y-auto flex-1">
                       {notifications.length === 0 ? (
                         <div className="p-8 text-center text-gray-500">
-                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mx-auto mb-4">
+                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Bell className="h-8 w-8 text-gray-400" />
                           </div>
-                          <p className="text-sm font-medium text-gray-700 mb-1">Belum ada notifikasi</p>
-                          <p className="text-xs text-gray-500">Notifikasi baru akan muncul di sini</p>
+                          <p className="text-sm font-medium">Belum ada notifikasi</p>
                         </div>
                       ) : (
                         notifications.map((notif, index) => (
                           <div
                             key={notif._id}
-                            className={`p-4 border-b border-gray-100 hover:bg-gradient-to-r hover:from-primary-50 hover:to-blue-50 cursor-pointer transition-all duration-200 transform hover:scale-[1.02] ${
-                              !notif.isRead ? 'bg-gradient-to-r from-blue-50 to-primary-50 border-l-4 border-l-primary-400' : ''
+                            className={`p-4 border-b border-gray-100/50 hover:bg-white/70 cursor-pointer transition-all duration-200 ${
+                              !notif.isRead ? 'bg-gradient-to-r from-blue-50/70 to-indigo-50/70' : ''
                             }`}
                             style={{ animationDelay: `${index * 0.1}s` }}
                             onClick={() => {
@@ -200,23 +214,31 @@ export function Header() {
                             }}
                           >
                             <div className="flex items-start gap-3">
-                              <div className="text-2xl flex-shrink-0 p-2 rounded-xl bg-white/50">
-                                {getNotificationIcon(notif.type)}
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                !notif.isRead ? 'bg-white shadow-sm' : 'bg-gray-100'
+                              }`}>
+                                <div className="text-lg">
+                                  {getNotificationIcon(notif.type)}
+                                </div>
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
-                                  <h4 className="font-semibold text-sm text-gray-900 line-clamp-1">
+                                  <h4 className={`font-semibold text-sm line-clamp-1 ${
+                                    !notif.isRead ? 'text-gray-900' : 'text-gray-600'
+                                  }`}>
                                     {notif.title}
                                   </h4>
-                                  {!notif.isRead && (
-                                    <div className="h-3 w-3 bg-gradient-to-r from-primary-500 to-blue-500 rounded-full flex-shrink-0 mt-0.5 animate-pulse shadow-lg"></div>
-                                  )}
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    {!notif.isRead && (
+                                      <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                                    )}
+                                    <span className="text-xs text-gray-400 font-medium">
+                                      {getRelativeTime(notif.createdAt)}
+                                    </span>
+                                  </div>
                                 </div>
                                 <p className="text-xs text-gray-600 mt-1 line-clamp-2">
                                   {notif.message}
-                                </p>
-                                <p className="text-xs text-primary-500 font-medium mt-2">
-                                  {getRelativeTime(notif.createdAt)}
                                 </p>
                               </div>
                             </div>
@@ -227,12 +249,13 @@ export function Header() {
 
                     {/* Footer */}
                     {notifications.length > 0 && (
-                      <div className="p-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50 text-center">
+                      <div className="p-4 border-t border-gray-200/50 bg-gradient-to-r from-gray-50/80 to-blue-50/80 text-center">
                         <Link
-                          href="/riwayat"
-                          className="text-sm text-primary-600 hover:text-primary-700 font-semibold px-4 py-2 rounded-xl bg-white/50 hover:bg-white/80 transition-all duration-200 inline-flex items-center gap-2 group"
+                          href="/notifikasi"
+                          className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-semibold bg-white/70 hover:bg-white/90 px-4 py-3 rounded-xl transition-all duration-200 shadow-sm"
                           onClick={() => setShowNotifications(false)}
                         >
+                          <Bell className="w-4 h-4" />
                           Lihat Semua Notifikasi
                           <Bell className="h-3 w-3 group-hover:scale-110 transition-transform" />
                         </Link>

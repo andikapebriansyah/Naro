@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import Task from '@/lib/models/Task';
+import User from '@/lib/models/User';
 import type { Types } from 'mongoose';
 import { createNotification } from '@/lib/notifications';
 
@@ -135,6 +136,21 @@ export async function POST(
       }
       
       await taskDoc.save();
+
+      // ✅ FIX: Update worker's balance and totalEarnings when employer confirms completion
+      if (assignedToId && taskDoc.budget) {
+        await User.findByIdAndUpdate(
+          assignedToId,
+          {
+            $inc: { 
+              balance: taskDoc.budget,        // Tambah balance
+              totalEarnings: taskDoc.budget,  // Tambah total earnings
+              completedTasks: 1               // Increment completed tasks
+            }
+          }
+        );
+        console.log(`✅ Updated worker ${assignedToId} balance and totalEarnings with ${taskDoc.budget}`);
+      }
 
       // ✅ Notify worker that task is completed and payment released
       console.log('🔔 Creating notifications for worker:', assignedToId);

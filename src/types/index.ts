@@ -1,4 +1,3 @@
-// User Types
 export interface User {
   _id: string;
   email: string;
@@ -6,23 +5,31 @@ export interface User {
   image?: string;
   role: 'user' | 'tasker' | 'admin';
   phone?: string;
+  phoneVerified?: boolean;
   location?: string;
+  locationCoordinates?: {
+    lat: number;
+    lng: number;
+  };
   isVerified: boolean;
   rating?: number;
   completedTasks?: number;
+  balance?: number;
+  totalEarnings?: number;
   // Profile fields for taskers
   about?: string;
   workCategories?: TaskCategory[];
   profileComplete?: boolean;
   ktpVerification?: KTPVerification;
   paymentMethod?: PaymentMethod;
+  withdrawalMethod?: WithdrawalMethod;
   createdAt: Date;
   updatedAt: Date;
 }
 
 // KTP Verification Types
 export interface KTPVerification {
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'not_submitted';
   ktpImage: string;
   selfieImage: string;
   ktpNumber?: string;
@@ -42,6 +49,29 @@ export interface PaymentMethod {
   accountName?: string;
   ewalletType?: 'gopay' | 'ovo' | 'dana' | 'shopeepay';
   ewalletNumber?: string;
+}
+
+// Withdrawal Method Types
+export interface WithdrawalMethod {
+  type: 'bank' | 'ewallet';
+  bankName?: string;
+  accountNumber?: string;
+  accountName?: string;
+  ewalletType?: 'gopay' | 'ovo' | 'dana' | 'shopeepay';
+  ewalletNumber?: string;
+}
+
+// Withdrawal Types
+export interface Withdrawal {
+  _id: string;
+  userId: string;
+  amount: number;
+  method: WithdrawalMethod;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  processedAt?: Date;
+  completedAt?: Date;
+  notes?: string;
+  createdAt: Date;
 }
 
 // Task Types
@@ -206,6 +236,7 @@ export type NotificationType =
   | 'new_applicant'
   | 'verification_status'
   | 'new_message'
+  | 'withdrawal_completed'
   | 'system';
 
 // API Response Types
@@ -242,4 +273,17 @@ export interface PaymentMethodForm {
   accountName?: string;
   ewalletType?: 'gopay' | 'ovo' | 'dana' | 'shopeepay';
   ewalletNumber?: string;
+}
+
+export interface WithdrawalMethodForm {
+  type: 'bank' | 'ewallet';
+  bankName?: string;
+  accountNumber?: string;
+  accountName?: string;
+  ewalletType?: 'gopay' | 'ovo' | 'dana' | 'shopeepay';
+  ewalletNumber?: string;
+}
+
+export interface WithdrawalForm {
+  amount: number;
 }

@@ -13,6 +13,23 @@ import { Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProfileGuard } from '@/components/guards/ProfileGuard';
 import { WorkerRecommendation } from '@/components/features/tasks/WorkerRecommendation';
+import dynamic from 'next/dynamic';
+
+// Dynamic import untuk MapSelector agar tidak error di SSR
+const MapSelector = dynamic(
+  () => import('@/components/features/tasks/MapSelector'),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-sm text-gray-600">Memuat peta...</p>
+        </div>
+      </div>
+    )
+  }
+);
 
 const categories = [
   { value: 'kebersihan', label: 'Kebersihan & Perawatan' },
@@ -47,7 +64,6 @@ export default function CreateTaskPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [showMapModal, setShowMapModal] = useState(false);
-  const [tempCoordinates, setTempCoordinates] = useState({ lat: 0, lng: 0 });
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
 
   // Fungsi untuk mendapatkan minimum date (hari ini) dengan timezone lokal
@@ -666,17 +682,14 @@ export default function CreateTaskPage() {
                       />
                       <button
                         type="button"
-                        onClick={() => {
-                          setTempCoordinates(formData.locationCoordinates || { lat: 0, lng: 0 });
-                          setShowMapModal(true);
-                        }}
+                        onClick={() => setShowMapModal(true)}
                         className="px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white font-semibold rounded-lg hover:shadow-md hover:shadow-emerald-500/25 transition-all duration-300 flex items-center justify-center gap-2 text-sm whitespace-nowrap"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        Maps
+                        🗺️ Pilih di Peta
                       </button>
                     </div>
                     {(formData.locationCoordinates && formData.locationCoordinates.lat !== 0 && formData.locationCoordinates.lng !== 0) && (
@@ -1047,138 +1060,19 @@ export default function CreateTaskPage() {
           </div>
         </div>
 
-        {/* Modal Koordinat Lokasi */}
-        {showMapModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">Pilih Lokasi</h3>
-                    <p className="text-sm text-gray-500 mt-1">Tentukan koordinat lokasi pekerjaan</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowMapModal(false)}
-                    className="h-8 w-8 p-0 rounded-full"
-                  >
-                    ✕
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <div className="text-center mb-6">
-                    <div className="text-4xl mb-3">📍</div>
-                    <h4 className="text-lg font-semibold text-gray-800 mb-2">Koordinat Lokasi</h4>
-                    <p className="text-sm text-gray-600">Masukkan koordinat atau gunakan lokasi saat ini</p>
-                  </div>
-                  
-                  <div className="space-y-4 max-w-sm mx-auto">
-                    <div>
-                      <Label htmlFor="tempLat">Latitude</Label>
-                      <Input
-                        id="tempLat"
-                        type="number"
-                        step="any"
-                        placeholder="Contoh: 5.5577"
-                        value={tempCoordinates.lat || ''}
-                        onChange={(e) => setTempCoordinates({
-                          ...tempCoordinates,
-                          lat: parseFloat(e.target.value) || 0
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="tempLng">Longitude</Label>
-                      <Input
-                        id="tempLng"
-                        type="number"
-                        step="any"
-                        placeholder="Contoh: 95.3222"
-                        value={tempCoordinates.lng || ''}
-                        onChange={(e) => setTempCoordinates({
-                          ...tempCoordinates,
-                          lng: parseFloat(e.target.value) || 0
-                        })}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full mt-4 py-3 border-2 border-dashed border-blue-300 hover:border-blue-400 hover:bg-blue-50 text-blue-600 font-medium"
-                  onClick={() => {
-                    if (navigator.geolocation) {
-                      navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                          setTempCoordinates({
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude
-                          });
-                          toast.success('Lokasi berhasil dideteksi!');
-                        },
-                        (error) => {
-                          console.error('Error getting location:', error);
-                          toast.error('Tidak dapat mengakses lokasi. Pastikan izin lokasi telah diberikan.');
-                        }
-                      );
-                    } else {
-                      toast.error('Geolocation tidak didukung oleh browser ini.');
-                    }
-                  }}
-                >
-                  <span className="mr-2">📍</span>
-                  Gunakan Lokasi Saat Ini
-                </Button>
-                
-                {(tempCoordinates.lat !== 0 && tempCoordinates.lng !== 0) && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
-                    <div className="flex items-center">
-                      <span className="text-green-600 mr-2">✓</span>
-                      <div>
-                        <p className="text-sm font-medium text-green-800">Koordinat tersimpan</p>
-                        <p className="text-xs text-green-600">
-                          {tempCoordinates.lat.toFixed(6)}, {tempCoordinates.lng.toFixed(6)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-xl">
-                <div className="flex justify-end space-x-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowMapModal(false)}
-                    className="px-6"
-                  >
-                    Batal
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setFormData({
-                        ...formData,
-                        locationCoordinates: tempCoordinates
-                      });
-                      setShowMapModal(false);
-                      toast.success('Koordinat lokasi berhasil disimpan!');
-                    }}
-                    disabled={tempCoordinates.lat === 0 || tempCoordinates.lng === 0}
-                    className="px-6 bg-blue-600 hover:bg-blue-700"
-                  >
-                    Simpan Lokasi
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Map Selector Modal */}
+        <MapSelector
+          isOpen={showMapModal}
+          onClose={() => setShowMapModal(false)}
+          onLocationSelect={(coordinates) => {
+            setFormData({
+              ...formData,
+              locationCoordinates: coordinates
+            });
+          }}
+          initialCoordinates={formData.locationCoordinates}
+          address={formData.location}
+        />
       </main>
     </ProfileGuard>
   );

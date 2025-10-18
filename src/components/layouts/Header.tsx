@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Menu, Bell, User, LogOut, Settings, Check, X } from 'lucide-react';
@@ -120,9 +121,15 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600 text-white font-bold text-xl">
-            N
+        <Link href={session ? "/dashboard" : "/"} className="flex items-center space-x-2">
+          <div className="relative h-10 w-10 rounded-full overflow-hidden bg-white shadow-md flex items-center justify-center">
+            <Image 
+              src="/logo/image.png"
+              alt="Naro Logo"
+              width={40}
+              height={40}
+              className="object-cover"
+            />
           </div>
           <span className="text-xl font-bold text-gray-900">Naro</span>
         </Link>

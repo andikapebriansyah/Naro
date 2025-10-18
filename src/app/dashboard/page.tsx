@@ -57,16 +57,16 @@ export default function DashboardPage() {
     completed: 0,
     pending: 0,
     total: 0,
-    earning: 2450000,
-    rating: 4.8
+    earning: 0,
+    rating: 0
   });
   const [workerStats, setWorkerStats] = useState({
     active: 0,
     completed: 0,
     pending: 0,
     total: 0,
-    earning: 2450000,
-    rating: 4.8
+    earning: 0,
+    rating: 0
   });
   const [processingJobId, setProcessingJobId] = useState<string | null>(null);
   const [cancelModal, setCancelModal] = useState<{
@@ -299,6 +299,12 @@ export default function DashboardPage() {
 
         if (statsData.success) {
           const tasks = statsData.data;
+
+          // ✅ Get real rating for employer
+          const userStatsResponse = await fetch('/api/users/financial-stats?role=employer');
+          const userStats = await userStatsResponse.json();
+          const actualRating = userStats.success ? userStats.data.rating : 0;
+
           setTaskStats({
             active: tasks.filter((t: any) =>
               ['accepted', 'active', 'proses'].includes(t.status) && t.assignedTo
@@ -314,7 +320,7 @@ export default function DashboardPage() {
             }).length,
             total: tasks.length,
             earning: 2450000,
-            rating: 4.8
+            rating: actualRating
           });
         }
       }
@@ -352,6 +358,11 @@ export default function DashboardPage() {
           }))
         });
 
+        // ✅ Get real rating for worker
+        const userStatsResponse = await fetch('/api/users/financial-stats?role=worker');
+        const userStats = await userStatsResponse.json();
+        const actualRating = userStats.success ? userStats.data.rating : 0;
+
         setWorkerStats({
           active: workerJobs.filter((job: any) =>
             ['accepted', 'active', 'proses'].includes(job.status)
@@ -362,7 +373,7 @@ export default function DashboardPage() {
           ).length,
           total: workerJobs.length,
           earning: totalEarning, // ✅ Use calculated earning
-          rating: 4.8 // Keep static for now, or calculate from reviews
+          rating: actualRating // ✅ Use real rating from reviews
         });
       } else {
         setWorkerStats({
@@ -782,7 +793,9 @@ export default function DashboardPage() {
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center mx-auto mb-3">
                     <Award className="w-6 h-6 text-purple-600" />
                   </div>
-                  <div className="text-xl font-bold text-gray-900">{taskStats.rating}</div>
+                  <div className="text-xl font-bold text-gray-900">
+                    {taskStats.rating > 0 ? taskStats.rating.toFixed(1) : '-'}
+                  </div>
                   <div className="text-xs text-gray-500 font-medium">Rating</div>
                 </div>
               </div>
@@ -1132,7 +1145,9 @@ export default function DashboardPage() {
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center mx-auto mb-3">
                     <Award className="w-6 h-6 text-purple-600" />
                   </div>
-                  <div className="text-xl font-bold text-gray-900">{workerStats.rating}</div>
+                  <div className="text-xl font-bold text-gray-900">
+                    {workerStats.rating > 0 ? workerStats.rating.toFixed(1) : '-'}
+                  </div>
                   <div className="text-xs text-gray-500 font-medium">Rating</div>
                 </div>
               </div>

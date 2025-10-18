@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import Task from '@/lib/models/Task';
 import User from '@/lib/models/User';
+import Review from '@/lib/models/Review';
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,7 +61,11 @@ export async function GET(request: NextRequest) {
         await User.findByIdAndUpdate(userId, { totalEarnings: calculatedEarnings });
       }
 
-      const averageRating = completed.length > 0 ? 4.5 : 0;
+      // ✅ Calculate real rating based on reviews received as worker
+      const reviews = await Review.find({ toUserId: userId });
+      const averageRating = reviews.length > 0 
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+        : 0;
 
       stats = {
         active: active.length,
@@ -108,7 +113,11 @@ export async function GET(request: NextRequest) {
       
       const monthlySpending = monthlyCompleted.reduce((sum, task) => sum + (task.budget || 0), 0);
 
-      const averageRating = completed.length > 0 ? 4.3 : 0;
+      // ✅ Calculate real rating based on reviews received as employer
+      const reviews = await Review.find({ toUserId: userId });
+      const averageRating = reviews.length > 0 
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+        : 0;
 
       stats = {
         active: active.length,

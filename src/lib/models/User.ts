@@ -100,6 +100,10 @@ const userSchema = new Schema(
       type: Number,
       default: 0,
     },
+    totalReviews: {
+      type: Number,
+      default: 0,
+    },
     completedTasks: {
       type: Number,
       default: 0,
@@ -141,6 +145,24 @@ const userSchema = new Schema(
     timestamps: true,
   }
 );
+
+// Static method untuk update rating berdasarkan reviews
+userSchema.statics.updateUserRating = async function(userId: string) {
+  const Review = mongoose.model('Review');
+  
+  try {
+    const reviews = await Review.find({ toUserId: userId });
+    const averageRating = reviews.length > 0 
+      ? reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / reviews.length 
+      : 0;
+    
+    await this.findByIdAndUpdate(userId, { rating: averageRating });
+    return averageRating;
+  } catch (error) {
+    console.error('Error updating user rating:', error);
+    return 0;
+  }
+};
 
 const User = models.User || mongoose.model('User', userSchema);
 

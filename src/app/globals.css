@@ -49,6 +49,100 @@ body {
 }
 
 /* Professional Dashboard Animations */
+
+/* Header & Navigation Animations */
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-slide-in-from-top {
+  animation: slideInFromTop 0.3s ease-out;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.5s ease-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Notification Badge Pulse */
+@keyframes notificationPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-notification-pulse {
+  animation: notificationPulse 2s ease-in-out infinite;
+}
+
+/* Bottom Nav Glow Effect */
+.nav-glow {
+  position: relative;
+}
+
+.nav-glow::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6, #06b6d4, #10b981);
+  border-radius: inherit;
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.3s ease;
+}
+
+.nav-glow:hover::before {
+  opacity: 0.3;
+}
 @keyframes fadeIn {
   0% {
     opacity: 0;
@@ -167,4 +261,63 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Logo spin animation */
+.animate-spin-slow {
+  animation: spin 3s linear infinite;
+}
+
+/* Navigation glow effects */
+@keyframes nav-glow {
+  0% {
+    box-shadow: 0 0 5px rgba(79, 70, 229, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(79, 70, 229, 0.4), 0 0 30px rgba(79, 70, 229, 0.2);
+  }
+}
+
+.nav-glow {
+  animation: nav-glow 2s ease-in-out infinite alternate;
+  transition: all 0.3s ease;
+}
+
+.nav-glow:hover {
+  filter: drop-shadow(0 0 15px rgba(99, 102, 241, 0.4));
+}
+
+/* Ripple effect for buttons */
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn-ripple:active::before {
+  width: 300px;
+  height: 300px;
 }

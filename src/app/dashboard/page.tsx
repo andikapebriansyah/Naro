@@ -14,7 +14,7 @@ import { ReportTaskModal } from '@/components/features/tasks/ReportTaskModal';
 import { toast } from 'sonner';
 import { calculateTaskProgress, formatDuration, formatCurrency } from '@/lib/utils';
 
-// ✅ Progress Status Message (using imported functions from utils)
+// ✅ Helper functions
 const getProgressMessage = (progress: any) => {
   switch (progress.status) {
     case 'not_started':
@@ -939,14 +939,16 @@ export default function DashboardPage() {
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                            <span className="text-lg font-bold text-primary-600">
-                              {formatCurrency(task.budget)}
-                            </span>
-                            <div className="flex gap-2">
+                          <div className="pt-4 border-t border-gray-100 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-lg font-bold text-primary-600">
+                                {formatCurrency(task.budget)}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 justify-end">
                               {canEditTask(task) && (
                                 <Link href={`/tugas/${task._id}/edit`}>
-                                  <button className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1">
+                                  <button className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-gray-200 transition-colors">
                                     <Edit className="h-3 w-3" />
                                     Edit
                                   </button>
@@ -955,7 +957,7 @@ export default function DashboardPage() {
                               {canCancelTask(task) && (
                                 <button
                                   onClick={() => handleCancelTask(task._id, task.title)}
-                                  className="bg-gray-100 text-red-600 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-red-50"
+                                  className="bg-gray-100 text-red-600 px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-red-50 transition-colors"
                                 >
                                   <Trash2 className="h-3 w-3" />
                                   Batalkan
@@ -965,7 +967,7 @@ export default function DashboardPage() {
                               {['accepted', 'active', 'proses'].includes(task.status) && task.assignedTo && (
                                 <button
                                   onClick={() => handleReportTask(task._id, task.title, 'employer')}
-                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold"
+                                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2"
                                 >
                                   Laporkan
                                 </button>
@@ -975,14 +977,14 @@ export default function DashboardPage() {
                                 <button
                                   onClick={() => handleCompleteTask(task._id, 'employer')}
                                   disabled={isCompleting === task._id}
-                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors flex items-center gap-2"
                                 >
                                   {isCompleting === task._id ? 'Proses...' :
                                     task.status === 'completed_worker' ? 'Konfirmasi' : 'Selesai'}
                                 </button>
                               )}
                               <Link href={`/tugas/${task._id}`}>
-                                <button className="bg-primary-100 text-primary-600 px-4 py-2 rounded-lg text-xs font-semibold">
+                                <button className="bg-primary-100 text-primary-600 px-4 py-2 rounded-lg text-xs font-semibold hover:bg-primary-200 transition-colors flex items-center gap-2">
                                   Detail →
                                 </button>
                               </Link>
@@ -1272,16 +1274,18 @@ export default function DashboardPage() {
                             </div>
                           ) : null}
 
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                            <span className="text-lg font-bold text-primary-600">
-                              {formatCurrency(job.budget)}
-                            </span>
-                            <div className="flex gap-2">
+                          <div className="pt-4 border-t border-gray-100 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-lg font-bold text-primary-600">
+                                {formatCurrency(job.budget)}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 justify-end">
                               {/* ✅ NEW: Button Laporkan - dengan userType 'worker' */}
                               {['accepted', 'active', 'proses'].includes(job.status) && (
                                 <button
                                   onClick={() => handleReportTask(job._id, job.title, 'worker')}
-                                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold"
+                                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2"
                                 >
                                   Laporkan
                                 </button>
@@ -1291,13 +1295,13 @@ export default function DashboardPage() {
                                 <button
                                   onClick={() => handleCompleteTask(job._id, 'worker')}
                                   disabled={isCompleting === job._id}
-                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50"
+                                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors flex items-center gap-2"
                                 >
                                   {isCompleting === job._id ? 'Proses...' : 'Selesai'}
                                 </button>
                               )}
                               <Link href={`/tugas/${job._id}`}>
-                                <button className="bg-primary-100 text-primary-600 px-4 py-2 rounded-lg text-xs font-semibold">
+                                <button className="bg-primary-100 text-primary-600 px-4 py-2 rounded-lg text-xs font-semibold hover:bg-primary-200 transition-colors flex items-center gap-2">
                                   Detail →
                                 </button>
                               </Link>
@@ -1420,26 +1424,28 @@ export default function DashboardPage() {
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                            <span className="text-lg font-bold text-primary-600">
-                              {formatCurrency(job.budget)}
-                            </span>
-                            <div className="flex gap-2">
+                          <div className="pt-4 border-t border-gray-100 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-lg font-bold text-primary-600">
+                                {formatCurrency(job.budget)}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 justify-end">
                               <Link href={`/pekerjaan/${job._id}`}>
-                                <button className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-xs font-semibold">
+                                <button className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg text-xs font-semibold hover:bg-gray-200 transition-colors flex items-center gap-2">
                                   Detail
                                 </button>
                               </Link>
                               <button
                                 onClick={() => handleRejectOfferedJob(job._id)}
                                 disabled={processingJobId === job._id}
-                                className="bg-white text-red-600 border border-red-600 px-3 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-50"
+                                className="bg-white text-red-600 border border-red-600 px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 hover:bg-red-50 transition-colors flex items-center gap-2"
                               >
                                 {processingJobId === job._id ? 'Menolak...' : 'Tolak'}
                               </button>
                               <button
                                 onClick={() => handleAcceptOfferedJob(job._id)}
-                                className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:shadow-lg transition-shadow"
+                                className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:shadow-lg transition-all flex items-center gap-2"
                               >
                                 Terima
                               </button>
@@ -1527,15 +1533,19 @@ export default function DashboardPage() {
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                            <span className="text-lg font-bold text-primary-600">
-                              {formatCurrency(job.budget)}
-                            </span>
-                            <Link href={`/pekerjaan/${job._id}`}>
-                              <button className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold">
-                                Lihat Detail
-                              </button>
-                            </Link>
+                          <div className="pt-4 border-t border-gray-100 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-lg font-bold text-primary-600">
+                                {formatCurrency(job.budget)}
+                              </span>
+                            </div>
+                            <div className="flex justify-end">
+                              <Link href={`/pekerjaan/${job._id}`}>
+                                <button className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:shadow-lg transition-all flex items-center gap-2">
+                                  Lihat Detail →
+                                </button>
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       ))}

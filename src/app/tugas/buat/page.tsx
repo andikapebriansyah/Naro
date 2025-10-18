@@ -16,13 +16,13 @@ import { WorkerRecommendation } from '@/components/features/tasks/WorkerRecommen
 import dynamic from 'next/dynamic';
 
 // Dynamic import untuk MapSelector agar tidak error di SSR
-const MapSelector = dynamic(
-  () => import('@/components/features/tasks/MapSelector'),
+const MapSelectorWrapper = dynamic(
+  () => import('@/components/features/tasks/MapSelectorWrapper'),
   { 
     ssr: false,
     loading: () => (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
           <p className="text-sm text-gray-600">Memuat peta...</p>
         </div>
@@ -65,6 +65,12 @@ function CreateTaskPageContent() {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [showMapModal, setShowMapModal] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure component is mounted (for client-side only features)
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Fungsi untuk mendapatkan minimum date (hari ini) dengan timezone lokal
   const getMinDate = () => {
@@ -258,6 +264,8 @@ function CreateTaskPageContent() {
       if (savedDraft) {
         try {
           const draftData = JSON.parse(savedDraft);
+          console.log('Loading draft data:', draftData);
+          console.log('Draft coordinates:', draftData.formData?.locationCoordinates);
           setFormData(draftData.formData || formData);
           if (draftData.photoPreviews) {
             setPhotoPreviews(draftData.photoPreviews);
@@ -407,13 +415,27 @@ function CreateTaskPageContent() {
       return;
     }
 
+    // Validasi koordinat (opsional tapi akan memberi peringatan)
+    if (!formData.locationCoordinates || formData.locationCoordinates.lat === 0 || formData.locationCoordinates.lng === 0) {
+      const confirmSubmit = confirm('Lokasi belum dipilih di peta. Apakah Anda yakin ingin melanjutkan tanpa koordinat peta?');
+      if (!confirmSubmit) {
+        toast.error('Silakan pilih lokasi di peta terlebih dahulu');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
+      console.log('Submitting form with data:', formData);
+      console.log('Location coordinates to send:', formData.locationCoordinates);
+      
       const data = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
         if (key === 'locationCoordinates') {
-          data.append(key, JSON.stringify(value));
+          const coordinatesString = JSON.stringify(value);
+          console.log('Serialized coordinates:', coordinatesString);
+          data.append(key, coordinatesString);
         } else {
           data.append(key, value.toString());
         }
@@ -502,28 +524,28 @@ function CreateTaskPageContent() {
       fallbackUrl="/dashboard"
     >
       <Header />
-      <main className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/40 py-8 px-4 pb-24">
-        <div className="container mx-auto max-w-4xl animate-fade-in">
-          <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-gray-200/60 animate-card-pop">
-            <div className="p-6 border-b border-gray-200/50 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 rounded-t-2xl">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <main className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/40 py-4 px-4 pb-20">
+        <div className="container mx-auto max-w-3xl animate-fade-in">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/60 animate-card-pop overflow-hidden">
+            <div className="p-4 sm:p-6 border-b border-gray-200/50 bg-gradient-to-r from-blue-50/80 to-indigo-50/80">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-blue-800 bg-clip-text text-transparent">
+                  <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-800 to-blue-800 bg-clip-text text-transparent">
                     {isEditMode ? 'Edit Tugas' : 'Buat Tugas Baru'}
                   </h1>
-                  <p className="text-gray-600 mt-2">
+                  <p className="text-gray-600 mt-1 text-sm sm:text-base">
                     {isEditMode ? 'Perbarui detail pekerjaan' : 'Isi detail pekerjaan yang dibutuhkan'}
                   </p>
                 </div>
                 {!isEditMode && (formData.title || formData.description || formData.category) && (
                   <div className="text-right">
-                    <p className="text-sm text-green-600 mb-2 flex items-center justify-end gap-1">
+                    <p className="text-xs text-green-600 mb-2 flex items-center justify-end gap-1">
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                       Draft tersimpan
                     </p>
                     <button
                       onClick={clearDraft}
-                      className="text-xs text-red-600 hover:text-red-700 bg-white/70 hover:bg-white/90 px-3 py-2 rounded-lg border border-red-200 hover:border-red-300 transition-all duration-200 font-medium"
+                      className="text-xs text-red-600 hover:text-red-700 bg-white/70 hover:bg-white/90 px-2 py-1 rounded-md border border-red-200 hover:border-red-300 transition-all duration-200 font-medium"
                     >
                       Hapus Draft
                     </button>
@@ -531,92 +553,138 @@ function CreateTaskPageContent() {
                 )}
               </div>
             </div>
-            <div className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="p-4 sm:p-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Informasi Dasar */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200/50 space-y-4 sm:space-y-6 animate-slide-up">
-                  <h3 className="text-lg sm:text-xl font-bold flex items-center gap-3 text-gray-800">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-200/50 space-y-4 animate-slide-up">
+                  <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800 border-b border-gray-100 pb-2">
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white shadow-sm">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <span className="text-sm sm:text-base">Informasi Dasar</span>
+                    <span>Informasi Dasar</span>
                   </h3>
 
-                  <div>
-                    <Label htmlFor="title" className="text-sm font-semibold text-gray-700 mb-2 block">
-                      Judul Tugas <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="title"
-                      placeholder="Contoh: Bersihkan Rumah 2 Lantai"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      required
-                      className="bg-white/70 backdrop-blur-sm border-gray-200/50 focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all duration-200"
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="title" className="text-sm font-semibold text-gray-700 mb-2 block">
+                        Judul Tugas <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="title"
+                        placeholder="Contoh: Bersihkan Rumah 2 Lantai"
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        required
+                        className="bg-white/70 backdrop-blur-sm border-gray-200/50 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all duration-200"
+                      />
+                    </div>
 
-                  <div>
-                    <Label htmlFor="category" className="text-sm font-semibold text-gray-700 mb-2 block">
-                      Kategori <span className="text-red-500">*</span>
-                    </Label>
-                    <select
-                      id="category"
-                      className="w-full h-12 rounded-xl border border-gray-200/50 bg-white/70 backdrop-blur-sm px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      required
-                    >
-                      <option value="">Pilih kategori</option>
-                      {categories.map((cat) => (
-                        <option key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                    <div>
+                      <Label htmlFor="category" className="text-sm font-semibold text-gray-700 mb-2 block">
+                        Kategori <span className="text-red-500">*</span>
+                      </Label>
+                      <select
+                        id="category"
+                        className="w-full h-11 rounded-lg border border-gray-200/50 bg-white/70 backdrop-blur-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        required
+                      >
+                        <option value="">Pilih kategori</option>
+                        {categories.map((cat) => (
+                          <option key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                  <div>
-                    <Label htmlFor="description" className="text-sm font-semibold text-gray-700 mb-2 block">
-                      Deskripsi Detail <span className="text-red-500">*</span>
-                    </Label>
-                    <textarea
-                      id="description"
-                      className="w-full min-h-[120px] rounded-xl border border-gray-200/50 bg-white/70 backdrop-blur-sm px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 resize-none"
-                      placeholder="Jelaskan detail pekerjaan yang dibutuhkan..."
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      required
-                    />
+                    <div>
+                      <Label htmlFor="budget" className="text-sm font-semibold text-gray-700 mb-2 block">
+                        Budget <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="flex">
+                        <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200/50 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold text-sm shadow-sm">
+                          Rp
+                        </span>
+                        <Input
+                          id="budget"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="20.000"
+                          className="rounded-l-none rounded-r-lg bg-white/70 backdrop-blur-sm border-gray-200/50 focus:border-yellow-500 focus:ring-yellow-500/20 transition-all duration-200"
+                          value={formData.budget}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '');
+                            setFormData({ ...formData, budget: value });
+                          }}
+                          onBlur={(e) => {
+                            const numValue = parseInt(formData.budget);
+                            if (formData.budget && numValue < 20000) {
+                              toast.error('Budget minimal Rp 20.000');
+                              setFormData({ ...formData, budget: '20000' });
+                            }
+                          }}
+                          required
+                        />
+                      </div>
+                      {formData.budget && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          {parseInt(formData.budget) >= 20000 ? (
+                            <span className="text-green-600">
+                              ✓ Rp {parseInt(formData.budget).toLocaleString('id-ID')}
+                            </span>
+                          ) : (
+                            <span className="text-red-600">
+                              ✗ Minimal Rp 20.000
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="description" className="text-sm font-semibold text-gray-700 mb-2 block">
+                        Deskripsi Detail <span className="text-red-500">*</span>
+                      </Label>
+                      <textarea
+                        id="description"
+                        className="w-full min-h-[100px] rounded-lg border border-gray-200/50 bg-white/70 backdrop-blur-sm px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 resize-none"
+                        placeholder="Jelaskan detail pekerjaan yang dibutuhkan..."
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 
                 {/* Foto Referensi */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200/50 space-y-4 animate-slide-up" style={{animationDelay: '100ms'}}>
-                  <h3 className="text-lg sm:text-xl font-bold flex items-center gap-3 text-gray-800">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-200/50 space-y-3 animate-slide-up" style={{animationDelay: '100ms'}}>
+                  <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800 border-b border-gray-100 pb-2">
+                    <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center text-white shadow-sm">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                     </div>
-                    <span className="text-sm sm:text-base">Foto Referensi (Opsional)</span>
+                    <span>Foto Referensi (Opsional)</span>
                   </h3>
 
-                  <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+                  <div className="flex flex-wrap gap-3">
                     {photoPreviews.map((preview, index) => (
                       <div key={index} className="relative">
                         <img
                           src={preview}
                           alt={`Preview ${index + 1}`}
-                          className="w-24 h-24 sm:w-28 sm:h-28 object-cover rounded-lg border border-gray-200"
+                          className="w-20 h-20 object-cover rounded-lg border border-gray-200"
                         />
                         <button
                           type="button"
                           onClick={() => removePhoto(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors text-sm font-bold shadow-sm"
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600 transition-colors text-xs font-bold shadow-sm"
                         >
                           ×
                         </button>
@@ -624,8 +692,8 @@ function CreateTaskPageContent() {
                     ))}
 
                     {photos.length < 5 && (
-                      <label className="w-24 h-24 sm:w-28 sm:h-28 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-200 bg-gray-50/50">
-                        <Upload className="h-5 w-5 text-gray-400" />
+                      <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-200 bg-gray-50/50">
+                        <Upload className="h-4 w-4 text-gray-400" />
                         <span className="text-xs text-gray-500 mt-1 font-medium">Tambah</span>
                         <input
                           type="file"
@@ -638,40 +706,36 @@ function CreateTaskPageContent() {
                     )}
                   </div>
                   
-                  <div className="bg-gradient-to-r from-blue-50/60 to-indigo-50/60 backdrop-blur-sm border border-blue-200/30 rounded-lg p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-gradient-to-r from-blue-50/60 to-indigo-50/60 backdrop-blur-sm border border-blue-200/30 rounded-lg p-3 flex items-start gap-2">
+                    <div className="w-6 h-6 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <div className="text-xs sm:text-sm text-blue-700">
+                    <div className="text-xs text-blue-700">
                       <p className="font-medium mb-1">Tips Foto:</p>
-                      <div className="space-y-0.5">
-                        <p>• Maksimal 5 foto, setiap foto maksimal 5MB</p>
-                        <p>• Format yang didukung: JPG, PNG, WEBP</p>
-                        <p>• Foto yang jelas akan membantu pekerja memahami tugas dengan lebih baik</p>
-                      </div>
+                      <p>• Maksimal 5 foto, setiap foto maksimal 5MB • Format: JPG, PNG, WEBP</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Lokasi & Jadwal */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200/50 space-y-4 sm:space-y-6 animate-slide-up" style={{animationDelay: '200ms'}}>
-                  <h3 className="text-lg sm:text-xl font-bold flex items-center gap-3 text-gray-800">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-emerald-600 to-green-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-200/50 space-y-4 animate-slide-up" style={{animationDelay: '200ms'}}>
+                  <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800 border-b border-gray-100 pb-2">
+                    <div className="w-8 h-8 bg-gradient-to-r from-emerald-600 to-green-600 rounded-lg flex items-center justify-center text-white shadow-sm">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                     </div>
-                    <span className="text-sm sm:text-base">Lokasi & Jadwal</span>
+                    <span>Lokasi & Jadwal</span>
                   </h3>
 
                   <div>
                     <Label htmlFor="location" className="text-sm font-semibold text-gray-700 mb-2 block">
                       Alamat Lokasi <span className="text-red-500">*</span>
                     </Label>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <div className="flex gap-2">
                       <Input
                         id="location"
                         placeholder="Contoh: Jl. T. Nyak Arief No. 123, Banda Aceh"
@@ -682,14 +746,27 @@ function CreateTaskPageContent() {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowMapModal(true)}
-                        className="px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white font-semibold rounded-lg hover:shadow-md hover:shadow-emerald-500/25 transition-all duration-300 flex items-center justify-center gap-2 text-sm whitespace-nowrap"
+                        onClick={() => {
+                          try {
+                            console.log('Opening map modal...');
+                            // Only show map if we're on client side
+                            if (typeof window !== 'undefined') {
+                              setShowMapModal(true);
+                            } else {
+                              toast.error('Peta hanya bisa dibuka di browser. Silakan refresh halaman.');
+                            }
+                          } catch (error) {
+                            console.error('Error opening map:', error);
+                            toast.error('Gagal membuka peta. Silakan coba lagi.');
+                          }
+                        }}
+                        className="px-3 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white font-semibold rounded-lg hover:shadow-md hover:shadow-emerald-500/25 transition-all duration-300 flex items-center gap-1 text-sm whitespace-nowrap"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        🗺️ Pilih di Peta
+                        Peta
                       </button>
                     </div>
                     {(formData.locationCoordinates && formData.locationCoordinates.lat !== 0 && formData.locationCoordinates.lng !== 0) && (
@@ -699,10 +776,10 @@ function CreateTaskPageContent() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label htmlFor="startDate" className="text-sm font-semibold text-gray-700 mb-2 block">
-                        Tanggal Mulai <span className="text-red-500">*</span>
+                        Mulai <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id="startDate"
@@ -716,7 +793,7 @@ function CreateTaskPageContent() {
                     </div>
                     <div>
                       <Label htmlFor="endDate" className="text-sm font-semibold text-gray-700 mb-2 block">
-                        Tanggal Berakhir <span className="text-red-500">*</span>
+                        Berakhir <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id="endDate"
@@ -726,23 +803,15 @@ function CreateTaskPageContent() {
                         onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                         required
                         disabled={!formData.startDate}
-                        className="bg-white/70 backdrop-blur-sm border-gray-200/50 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-white/70 backdrop-blur-sm border-gray-200/50 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all duration-200 disabled:opacity-50"
                       />
-                      {!formData.startDate && (
-                        <p className="text-xs text-gray-500 mt-2 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Pilih tanggal mulai terlebih dahulu
-                        </p>
-                      )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label htmlFor="startTime" className="text-sm font-semibold text-gray-700 mb-2 block">
-                        Waktu Masuk <span className="text-red-500">*</span>
+                        Jam Masuk <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id="startTime"
@@ -751,20 +820,17 @@ function CreateTaskPageContent() {
                         onChange={(e) => handleStartTimeChange(e.target.value)}
                         required
                         disabled={!formData.startDate}
-                        className="bg-white/70 backdrop-blur-sm border-gray-200/50 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-white/70 backdrop-blur-sm border-gray-200/50 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all duration-200 disabled:opacity-50"
                       />
                       {formData.startDate && formData.startDate === getMinDate() && (
-                        <p className="text-xs text-orange-600 mt-2 bg-orange-50 px-2 py-1 rounded flex items-center gap-1">
-                          ⏰ Minimal: {getMinTime(formData.startDate)} (3 jam dari sekarang)
+                        <p className="text-xs text-orange-600 mt-1 bg-orange-50 px-2 py-1 rounded">
+                          Min: {getMinTime(formData.startDate)}
                         </p>
-                      )}
-                      {!formData.startDate && (
-                        <p className="text-xs text-gray-500 mt-2 bg-gray-50 px-2 py-1 rounded">Pilih tanggal mulai terlebih dahulu</p>
                       )}
                     </div>
                     <div>
                       <Label htmlFor="endTime" className="text-sm font-semibold text-gray-700 mb-2 block">
-                        Waktu Pulang <span className="text-red-500">*</span>
+                        Jam Pulang <span className="text-red-500">*</span>
                       </Label>
                       <Input
                         id="endTime"
@@ -773,119 +839,26 @@ function CreateTaskPageContent() {
                         onChange={(e) => handleEndTimeChange(e.target.value)}
                         required
                         disabled={!formData.startTime}
-                        className="bg-white/70 backdrop-blur-sm border-gray-200/50 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-white/70 backdrop-blur-sm border-gray-200/50 focus:border-blue-500 focus:ring-blue-500/20 rounded-lg transition-all duration-200 disabled:opacity-50"
                       />
                       {formData.startDate === formData.endDate && formData.startTime && (
-                        <p className="text-xs text-orange-600 mt-2 bg-orange-50 px-2 py-1 rounded flex items-center gap-1">
-                          ⏰ Minimal: {getMinEndTime()} (1 jam setelah waktu masuk)
+                        <p className="text-xs text-orange-600 mt-1 bg-orange-50 px-2 py-1 rounded">
+                          Min: {getMinEndTime()}
                         </p>
                       )}
-                      {!formData.startTime && (
-                        <p className="text-xs text-gray-500 mt-2 bg-gray-50 px-2 py-1 rounded">Pilih waktu masuk terlebih dahulu</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-r from-emerald-50/60 to-green-50/60 backdrop-blur-sm border border-emerald-200/30 rounded-lg p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="text-xs sm:text-sm text-emerald-700">
-                      <p className="font-medium mb-1">Info Jadwal:</p>
-                      <div className="space-y-0.5">
-                        <p>• Waktu mulai minimal 3 jam dari sekarang</p>
-                        <p>• Tanggal tidak bisa dipilih yang sudah lewat</p>
-                        <p>• Koordinat GPS membantu pekerja menemukan lokasi dengan akurat</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Budget */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200/50 space-y-4 sm:space-y-6 animate-slide-up" style={{animationDelay: '300ms'}}>
-                  <h3 className="text-lg sm:text-xl font-bold flex items-center gap-3 text-gray-800">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg flex items-center justify-center text-white shadow-sm">
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                      </svg>
-                    </div>
-                    <span className="text-sm sm:text-base">Budget Pembayaran</span>
-                  </h3>
-
-                  <div>
-                    <Label htmlFor="budget" className="text-sm font-semibold text-gray-700 mb-2 block">
-                      Budget <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex">
-                      <span className="inline-flex items-center px-3 sm:px-4 rounded-l-lg border border-r-0 border-gray-200/50 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold text-sm shadow-sm">
-                        Rp
-                      </span>
-                      <Input
-                        id="budget"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="20.000"
-                        className="rounded-l-none rounded-r-lg bg-white/70 backdrop-blur-sm border-gray-200/50 focus:border-yellow-500 focus:ring-yellow-500/20 transition-all duration-200"
-                        value={formData.budget}
-                        onChange={(e) => {
-                          // Hanya izinkan angka
-                          const value = e.target.value.replace(/\D/g, '');
-                          
-                          // Format dengan titik ribuan
-                          const formatted = value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-                          
-                          setFormData({ ...formData, budget: value }); // Simpan nilai asli tanpa format
-                        }}
-                        onBlur={(e) => {
-                          // Validasi saat blur
-                          const numValue = parseInt(formData.budget);
-                          if (formData.budget && numValue < 20000) {
-                            toast.error('Budget minimal Rp 20.000');
-                            setFormData({ ...formData, budget: '20000' });
-                          }
-                        }}
-                        required
-                      />
-                    </div>
-                    {formData.budget && (
-                      <p className="text-xs text-gray-600 mt-1">
-                        {parseInt(formData.budget) >= 20000 ? (
-                          <span className="text-green-600">
-                            ✓ Rp {parseInt(formData.budget).toLocaleString('id-ID')}
-                          </span>
-                        ) : (
-                          <span className="text-red-600">
-                            ✗ Minimal Rp 20.000
-                          </span>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-yellow-50/80 to-orange-50/80 backdrop-blur-sm border border-yellow-200/50 rounded-xl p-4 flex items-start gap-3">
-                    <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="text-sm text-yellow-700">
-                      <p className="font-medium mb-1">Info Pembayaran:</p>
-                      <p>Budget yang Anda masukkan akan ditahan dan dibayarkan ke pekerja setelah tugas selesai</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Cara Mencari Pekerja */}
-                <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-gray-200/60 space-y-4 sm:space-y-6 animate-slide-up" style={{animationDelay: '400ms'}}>
-                  <h3 className="text-lg sm:text-xl font-bold flex items-center gap-3 text-gray-800">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center text-white">
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-200/60 space-y-4 animate-slide-up" style={{animationDelay: '300ms'}}>
+                  <h3 className="text-lg font-bold flex items-center gap-2 text-gray-800 border-b border-gray-100 pb-2">
+                    <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center text-white">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                     </div>
-                    <span className="text-sm sm:text-base">Cara Mencari Pekerja</span>
+                    <span>Cara Mencari Pekerja</span>
                   </h3>
 
                   <div className="space-y-3">
@@ -894,23 +867,23 @@ function CreateTaskPageContent() {
                         setFormData({ ...formData, searchMethod: 'publication' });
                         setSelectedWorker(null);
                       }}
-                      className={`w-full border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+                      className={`w-full border-2 rounded-lg p-3 cursor-pointer transition-all duration-200 ${
                         formData.searchMethod === 'publication'
                           ? 'border-blue-400 bg-blue-50/70'
                           : 'border-gray-200 bg-white/70 hover:border-blue-300 hover:bg-blue-50/30'
                       }`}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                           formData.searchMethod === 'publication' ? 'bg-blue-500' : 'bg-gray-400'
                         }`}>
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
                           </svg>
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-semibold text-base mb-1">Publikasikan Tugas</h4>
-                          <p className="text-sm text-gray-600">
+                          <h4 className="font-semibold text-sm mb-1">Publikasikan Tugas</h4>
+                          <p className="text-xs text-gray-600">
                             Tugas ditampilkan dan pekerja bisa melamar
                           </p>
                         </div>
@@ -930,23 +903,23 @@ function CreateTaskPageContent() {
 
                     <div
                       onClick={() => setFormData({ ...formData, searchMethod: 'find_worker' })}
-                      className={`w-full border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+                      className={`w-full border-2 rounded-lg p-3 cursor-pointer transition-all duration-200 ${
                         formData.searchMethod === 'find_worker'
                           ? 'border-purple-400 bg-purple-50/70'
                           : 'border-gray-200 bg-white/70 hover:border-purple-300 hover:bg-purple-50/30'
                       }`}
                     >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                           formData.searchMethod === 'find_worker' ? 'bg-purple-500' : 'bg-gray-400'
                         }`}>
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                           </svg>
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-semibold text-base mb-1">Cari Pekerja AI</h4>
-                          <p className="text-sm text-gray-600">
+                          <h4 className="font-semibold text-sm mb-1">Cari Pekerja AI</h4>
+                          <p className="text-xs text-gray-600">
                             Gunakan AI untuk rekomendasi pekerja terbaik
                           </p>
                         </div>
@@ -964,39 +937,11 @@ function CreateTaskPageContent() {
                       </div>
                     </div>
                   </div>
-
-                  <div className={`backdrop-blur-sm border rounded-xl p-4 flex items-start gap-3 ${
-                    formData.searchMethod === 'publication'
-                      ? 'bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border-blue-200/50'
-                      : 'bg-gradient-to-r from-purple-50/80 to-pink-50/80 border-purple-200/50'
-                  }`}>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      formData.searchMethod === 'publication'
-                        ? 'bg-blue-500'
-                        : 'bg-purple-500'
-                    }`}>
-                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className={`text-sm ${
-                      formData.searchMethod === 'publication' ? 'text-blue-700' : 'text-purple-700'
-                    }`}>
-                      <p className="font-medium mb-1">
-                        {formData.searchMethod === 'publication' ? 'Mode Publikasikan' : 'Mode Cari Pekerja Cerdas'}:
-                      </p>
-                      <p>
-                        {formData.searchMethod === 'publication'
-                          ? 'Tugas akan ditampilkan dan pekerja bisa melamar. Anda bisa memilih dari pelamar yang tersedia.'
-                          : 'Sistem AI akan menganalisis deskripsi pekerjaan Anda dan memberikan rekomendasi pekerja terbaik berdasarkan keahlian, pengalaman, rating, dan lokasi.'}
-                      </p>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Rekomendasi Pekerja Cerdas */}
                 {formData.searchMethod === 'find_worker' && (
-                  <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-gray-200/60 space-y-4 sm:space-y-6 animate-slide-up" style={{animationDelay: '500ms'}}>
+                  <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-200/60 space-y-4 animate-slide-up" style={{animationDelay: '400ms'}}>
                     <WorkerRecommendation
                       jobData={{
                         title: formData.title,
@@ -1009,27 +954,22 @@ function CreateTaskPageContent() {
                     />
                     
                     {selectedWorker && (
-                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-3">
                         <div className="flex items-center space-x-2 mb-2">
                           <span className="text-blue-600">🤖</span>
-                          <span className="font-medium text-blue-900">
+                          <span className="font-medium text-blue-900 text-sm">
                             Pekerja AI Terpilih: {selectedWorker.name}
                           </span>
                         </div>
-                        <p className="text-sm text-blue-700">
+                        <p className="text-xs text-blue-700">
                           Tugas akan langsung ditugaskan ke {selectedWorker.name} dan diarahkan ke halaman kontrak.
-                          Anda bisa mengubah pilihan dengan memilih pekerja lain dari rekomendasi AI di atas.
                         </p>
-                        <div className="mt-2 flex items-center space-x-1 text-xs text-blue-600">
-                          <span>🎯</span>
-                          <span>Sistem AI telah menganalisis dan merekomendasikan pekerja terbaik</span>
-                        </div>
                       </div>
                     )}
                   </div>
                 )}
 
-                <div className="flex space-x-4">
+                <div className="flex space-x-3">
                   <Button
                     type="button"
                     variant="outline"
@@ -1043,8 +983,8 @@ function CreateTaskPageContent() {
                       ? 'Menyimpan...' 
                       : selectedWorker
                         ? (isEditMode 
-                            ? `🤖 Update & Tugaskan ke ${selectedWorker.name} →`
-                            : `🤖 Buat & Tugaskan ke ${selectedWorker.name} →`)
+                            ? `🤖 Update & Tugaskan →`
+                            : `🤖 Buat & Tugaskan →`)
                         : isEditMode
                           ? (formData.searchMethod === 'find_worker' 
                               ? 'Update & Cari Pekerja →' 
@@ -1061,18 +1001,30 @@ function CreateTaskPageContent() {
         </div>
 
         {/* Map Selector Modal */}
-        <MapSelector
-          isOpen={showMapModal}
-          onClose={() => setShowMapModal(false)}
-          onLocationSelect={(coordinates) => {
-            setFormData({
-              ...formData,
-              locationCoordinates: coordinates
-            });
-          }}
-          initialCoordinates={formData.locationCoordinates}
-          address={formData.location}
-        />
+        {typeof window !== 'undefined' && isMounted && showMapModal && (
+          <MapSelectorWrapper
+            isOpen={showMapModal}
+            onClose={() => setShowMapModal(false)}
+            onLocationSelect={(coordinates) => {
+              try {
+                console.log('Received coordinates from MapSelector:', coordinates);
+                const newFormData = {
+                  ...formData,
+                  locationCoordinates: coordinates
+                };
+                console.log('Updating formData with coordinates:', newFormData.locationCoordinates);
+                setFormData(newFormData);
+                setShowMapModal(false);
+                toast.success(`Lokasi berhasil dipilih! (${coordinates.lat.toFixed(6)}, ${coordinates.lng.toFixed(6)})`);
+              } catch (error) {
+                console.error('Error setting location:', error);
+                toast.error('Gagal menyimpan lokasi. Silakan coba lagi.');
+              }
+            }}
+            initialCoordinates={formData.locationCoordinates}
+            address={formData.location}
+          />
+        )}
       </main>
     </ProfileGuard>
   );

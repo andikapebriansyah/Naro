@@ -7,8 +7,21 @@ import { uploadToCloudinary } from '@/lib/cloudinary';
 import { extractTextWithTimeout } from '@/lib/ocr';
 import { parseKTPData, validateKTPData } from '@/lib/ktpParser';
 
+// Force nodejs runtime for file uploads (tidak pakai edge runtime)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
+    // Log environment check
+    console.log('🔍 Environment check:', {
+      hasCloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
+      hasApiKey: !!process.env.CLOUDINARY_API_KEY,
+      hasApiSecret: !!process.env.CLOUDINARY_API_SECRET,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      runtime: 'nodejs'
+    });
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -26,9 +39,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload images to Cloudinary
-    const ktpUrl = await uploadToCloudinary(ktpImage);
-    const selfieUrl = await uploadToCloudinary(selfieImage);
+    console.log('📤 Uploading KTP image to Cloudinary...');
+    let ktpUrl: string;
+    let selfieUrl: string;
+    
+    try {
+      ktpUrl = await uploadToCloudinary(ktpImage, 'naro-app/verifications/ktp');
+      console.log('✅ KTP uploaded successfully:', ktpUrl);
+    } catch (uploadError: any) {
+      console.error('❌ KTP upload failed:', uploadError);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Gagal mengupload foto KTP',
+          details: uploadError.message
+        },
+        { status: 503 }
+      );
+    }
+    
+    console.log('📤 Uploading selfie image to Cloudinary...');
+    try {
+      selfieUrl = await uploadToCloudinary(selfieImage, 'naro-app/verifications/selfie');
+      console.log('✅ Selfie uploaded successfully:', selfieUrl);
+    } catch (uploadError: any) {
+      console.error('❌ Selfie upload failed:', uploadError);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Gagal mengupload foto selfie',
+          details: uploadError.message
+        },
+        { status: 503 }
+      );
+    }
 
     // Perform OCR on KTP image
     let ocrResult = null;
@@ -120,11 +164,30 @@ export async function POST(request: NextRequest) {
       data: responseData,
       message: 'Verifikasi berhasil diajukan',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Verification submission error:', error);
+    
+    // Provide more specific error messages to the client
+    let errorMessage = 'Internal server error';
+    let statusCode = 500;
+    
+    if (error?.message?.includes('Cloudinary')) {
+      errorMessage = error.message;
+      statusCode = 503; // Service Unavailable
+    } else if (error?.message?.includes('credentials')) {
+      errorMessage = 'Image upload service not configured properly';
+      statusCode = 503;
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
+      { 
+        success: false, 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      },
+      { status: statusCode }
     );
   }
 }

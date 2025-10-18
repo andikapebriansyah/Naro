@@ -18,8 +18,9 @@ export async function GET(request: NextRequest) {
 
     await dbConnect();
 
-    const user = await User.findById(userId).select('balance');
+    const user = await User.findById(userId).select('balance totalEarnings');
     const currentBalance = user?.balance || 0;
+    const totalEarnings = user?.totalEarnings || 0;
 
     let stats;
 
@@ -28,8 +29,9 @@ export async function GET(request: NextRequest) {
         assignedTo: userId,
       });
 
+      // ✅ FIX: Use same completed status logic as dashboard
       const completed = workerTasks.filter(task => 
-        task.status === 'completed' || task.status === 'selesai'
+        ['completed', 'selesai'].includes(task.status)
       );
       const active = workerTasks.filter(task => 
         ['accepted', 'active', 'proses'].includes(task.status)
@@ -38,7 +40,8 @@ export async function GET(request: NextRequest) {
         ['pending', 'completed_worker'].includes(task.status)
       );
 
-      const totalEarnings = completed.reduce((sum, task) => sum + (task.budget || 0), 0);
+      // Calculate total earnings from completed tasks
+      const calculatedEarnings = completed.reduce((sum, task) => sum + (task.budget || 0), 0);
 
       const now = new Date();
       const currentMonth = now.getMonth();
@@ -52,12 +55,10 @@ export async function GET(request: NextRequest) {
       
       const monthlyEarnings = monthlyCompleted.reduce((sum, task) => sum + (task.budget || 0), 0);
 
-      console.log(`Worker stats for ${userId}:`, {
-        completed: completed.length,
-        active: active.length, 
-        pending: pending.length,
-        total: workerTasks.length,
-      });
+      // Update totalEarnings in database if it's different
+      if (calculatedEarnings !== totalEarnings) {
+        await User.findByIdAndUpdate(userId, { totalEarnings: calculatedEarnings });
+      }
 
       const averageRating = completed.length > 0 ? 4.5 : 0;
 
@@ -66,34 +67,31 @@ export async function GET(request: NextRequest) {
         completed: completed.length,
         pending: pending.length,
         total: workerTasks.length,
-        earning: totalEarnings,
+        earning: calculatedEarnings,
         monthlyEarning: monthlyEarnings,
         balance: currentBalance,
+        totalEarnings: calculatedEarnings, // Total earnings (tidak berkurang)
         rating: averageRating
       };
 
     } else {
-      // Employer stats - MATCH RIWAYAT LOGIC
+      // Employer stats
       const employerTasks = await Task.find({
         posterId: userId
       });
 
-      console.log(`Processing employer stats for user ${userId}`);
-      console.log(`Total tasks found: ${employerTasks.length}`);
-
-      // MATCH RIWAYAT: in_progress filter
       const active = employerTasks.filter((task: any) => {
         const isInProgress = ['pending', 'accepted', 'active', 'proses', 'completed_worker'].includes(task.status) && task.assignedTo !== null;
         return isInProgress;
       });
 
-      // MATCH RIWAYAT: pending filter (publication open tanpa assigned)
       const pending = employerTasks.filter((task: any) => 
         task.status === 'open' && !task.assignedTo
       );
 
+      // ✅ FIX: Use same completed status logic as dashboard
       const completed = employerTasks.filter((task: any) => 
-        task.status === 'selesai' || task.status === 'completed'
+        ['completed', 'selesai'].includes(task.status)
       );
 
       const totalSpent = completed.reduce((sum, task) => sum + (task.budget || 0), 0);
@@ -110,12 +108,6 @@ export async function GET(request: NextRequest) {
       
       const monthlySpending = monthlyCompleted.reduce((sum, task) => sum + (task.budget || 0), 0);
 
-      console.log(`Employer stats summary for ${userId}:`);
-      console.log(`Completed: ${completed.length}`);
-      console.log(`Active: ${active.length}`);
-      console.log(`Pending: ${pending.length}`);
-      console.log(`Total: ${employerTasks.length}`);
-
       const averageRating = completed.length > 0 ? 4.3 : 0;
 
       stats = {
@@ -125,11 +117,10 @@ export async function GET(request: NextRequest) {
         total: employerTasks.length,
         earning: totalSpent,
         rating: averageRating,
-        balance: currentBalance
+        balance: currentBalance,
+        totalEarnings: totalEarnings // For employer, this might be 0
       };
     }
-
-    console.log(`Final stats response:`, stats);
 
     return NextResponse.json({
       success: true,

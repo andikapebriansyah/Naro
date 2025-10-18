@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import Task from '@/lib/models/Task';
 import User from '@/lib/models/User';
+import { createNotification } from '@/lib/notifications';
 
 export async function POST(
   request: NextRequest,
@@ -12,83 +13,87 @@ export async function POST(
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    const { approve } = await request.json();
     const taskId = params.id;
 
     await dbConnect();
 
-    // Get the task
-    const task = await Task.findById(taskId).populate('posterId assignedTo');
+    const task = await Task.findById(taskId);
+
     if (!task) {
-      return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'Tugas tidak ditemukan' },
+        { status: 404 }
+      );
     }
 
-    const userId = session.user.id;
-    const isOwner = task.posterId._id.toString() === userId;
-
-    // Only task owner can approve completion
-    if (!isOwner) {
-      return NextResponse.json({ success: false, error: 'Only task owner can approve completion' }, { status: 403 });
+    // Verify user is the task poster
+    if (task.posterId.toString() !== session.user.id) {
+      return NextResponse.json(
+        { success: false, error: 'Hanya pemberi tugas yang dapat menyetujui penyelesaian' },
+        { status: 403 }
+      );
     }
 
-    // Task must be in completed_worker state
+    // Verify task is in completed_worker status
     if (task.status !== 'completed_worker') {
-      return NextResponse.json({ success: false, error: 'Task is not waiting for approval' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Tugas belum ditandai selesai oleh pekerja' },
+        { status: 400 }
+      );
     }
 
-    let updateData: any = {
-      employerApprovedAt: new Date(),
-      approvedBy: userId
-    };
+    // Update task status to completed
+    task.status = 'completed';
+    task.completedAt = new Date();
+    await task.save();
 
-    if (approve) {
-      // Approve completion
-      updateData.status = 'completed';
-      
-      // Process payment to worker
-      if (task.assignedTo && task.budget) {
-        await User.findByIdAndUpdate(
-          task.assignedTo._id,
-          { $inc: { balance: task.budget } }
-        );
-        
-        await User.findByIdAndUpdate(
-          task.posterId._id,
-          { $inc: { balance: -task.budget } }
-        );
+    // **FIX: Update worker's balance and totalEarnings**
+    if (task.assignedTo) {
+      await User.findByIdAndUpdate(
+        task.assignedTo,
+        {
+          $inc: { 
+            balance: task.budget,        // Tambah balance
+            totalEarnings: task.budget,  // Tambah total earnings
+            completedTasks: 1            // Increment completed tasks
+          }
+        }
+      );
 
-        updateData.paymentProcessed = true;
-        updateData.paymentAmount = task.budget;
-        updateData.paidAt = new Date();
-      }
-    } else {
-      // Reject completion - back to active
-      updateData.status = 'active';
-      updateData.rejectedAt = new Date();
+      // Send notification to worker
+      await createNotification({
+        userId: task.assignedTo.toString(),
+        title: 'Pembayaran Diterima',
+        message: `Selamat! Anda menerima Rp ${task.budget.toLocaleString('id-ID')} untuk tugas "${task.title}"`,
+        type: 'payment_received',
+        relatedId: taskId,
+      });
     }
 
-    // Update the task
-    const updatedTask = await Task.findByIdAndUpdate(
-      taskId,
-      updateData,
-      { new: true }
-    ).populate('posterId assignedTo');
+    // Send notification to poster
+    await createNotification({
+      userId: session.user.id,
+      title: 'Tugas Selesai',
+      message: `Tugas "${task.title}" telah diselesaikan`,
+      type: 'task_completed',
+      relatedId: taskId,
+    });
 
     return NextResponse.json({
       success: true,
-      data: updatedTask,
-      message: approve 
-        ? 'Task completion approved! Payment processed.' 
-        : 'Task completion rejected. Task is back to active status.'
+      message: 'Tugas berhasil diselesaikan dan pembayaran telah dikirim',
+      data: task,
     });
-
   } catch (error) {
     console.error('Approve completion error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to process approval' },
+      { success: false, error: 'Terjadi kesalahan saat menyetujui penyelesaian tugas' },
       { status: 500 }
     );
   }

@@ -8,10 +8,10 @@ const ktpVerificationSchema = new Schema({
   },
   ktpImage: String,
   selfieImage: String,
-  ktpNumber: String, // Keep for backward compatibility
-  fullName: String,  // Keep for backward compatibility
-  dateOfBirth: String, // Keep for backward compatibility
-  address: String,   // Keep for backward compatibility
+  ktpNumber: String,
+  fullName: String,
+  dateOfBirth: String,
+  address: String,
   submittedAt: { type: Date, default: Date.now },
   verifiedAt: Date,
   reviewedAt: Date,
@@ -50,6 +50,18 @@ const paymentMethodSchema = new Schema({
   ewalletNumber: String,
 });
 
+const withdrawalMethodSchema = new Schema({
+  type: { type: String, enum: ['bank', 'ewallet'] },
+  bankName: String,
+  accountNumber: String,
+  accountName: String,
+  ewalletType: {
+    type: String,
+    enum: ['gopay', 'ovo', 'dana', 'shopeepay'],
+  },
+  ewalletNumber: String,
+});
+
 const userSchema = new Schema(
   {
     email: {
@@ -69,6 +81,12 @@ const userSchema = new Schema(
       default: 'user',
     },
     phone: String,
+    phoneVerified: {
+      type: Boolean,
+      default: false,
+    },
+    phoneVerificationCode: String,
+    phoneVerificationExpiry: Date,
     location: String,
     locationCoordinates: {
       lat: Number,
@@ -81,22 +99,6 @@ const userSchema = new Schema(
     rating: {
       type: Number,
       default: 0,
-      min: 0,
-      max: 5,
-    },
-    totalReviews: {
-      type: Number,
-      default: 0,
-    },
-    reviewStats: {
-      averageRating: { type: Number, default: 0 },
-      totalReviews: { type: Number, default: 0 },
-      aspects: {
-        communication: { type: Number, default: 0 },
-        professionalism: { type: Number, default: 0 },
-        quality: { type: Number, default: 0 },
-        punctuality: { type: Number, default: 0 },
-      },
     },
     completedTasks: {
       type: Number,
@@ -106,19 +108,19 @@ const userSchema = new Schema(
       type: Number,
       default: 0,
     },
+    totalEarnings: {
+      type: Number,
+      default: 0,
+    },
     // Profile fields for taskers
     about: String,
     workCategories: [{
       type: String,
       enum: ['kebersihan', 'teknisi', 'renovasi', 'tukang', 'angkut', 'taman', 'lainnya']
     }],
-    isAvailable: {
-      type: Boolean,
-      default: true,
-    },
     // AI Embedding vector for smart recommendation (stored as JSON string)
     profileVector: {
-      type: String,  // Change to String to store JSON
+      type: String,
       default: null,
       required: false,
     },
@@ -133,6 +135,7 @@ const userSchema = new Schema(
     },
     ktpVerification: ktpVerificationSchema,
     paymentMethod: paymentMethodSchema,
+    withdrawalMethod: withdrawalMethodSchema,
   },
   {
     timestamps: true,

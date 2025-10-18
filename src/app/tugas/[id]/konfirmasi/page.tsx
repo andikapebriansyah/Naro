@@ -281,7 +281,7 @@ export default function TaskConfirmationPage() {
                   className="w-5 h-5 text-primary-600 border-2 border-gray-300 rounded focus:ring-primary-500 focus:ring-2 mt-0.5"
                 />
                 <label htmlFor="terms" className="text-sm text-gray-700 leading-relaxed">
-                  Saya telah membaca dan <span className="font-semibold text-gray-900">menyetujui ketentuan layanan</span> KawanKerja serta bersedia membayar upah yang telah disepakati
+                  Saya telah membaca dan <span className="font-semibold text-gray-900">menyetujui ketentuan layanan</span> Naro serta bersedia membayar upah yang telah disepakati
                 </label>
               </div>
             </CardContent>

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Home, Search, Plus, FileText, User } from 'lucide-react';
@@ -74,6 +75,7 @@ export function BottomNav() {
                         ? "bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 shadow-primary-200 animate-float" 
                         : "bg-gradient-to-br from-primary-400 via-primary-500 to-primary-600 shadow-primary-100 group-hover:shadow-primary-200 group-hover:shadow-xl"
                     )}>
+                      {/* Simple Plus icon for create button */}
                       <Icon className={cn(
                         "h-7 w-7 text-white transition-transform duration-300 z-10 relative",
                         "group-hover:scale-110 group-hover:rotate-90"
@@ -147,11 +149,6 @@ export function BottomNav() {
                   
                   {/* Hover ripple effect */}
                   <div className="absolute inset-0 rounded-2xl bg-primary-400 opacity-0 group-hover:opacity-10 scale-0 group-hover:scale-125 transition-all duration-400"></div>
-                  
-                  {/* Notification dot for specific items */}
-                  {(item.href === '/riwayat' || item.href === '/profil') && Math.random() > 0.7 && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-red-400 to-red-500 rounded-full animate-notification-pulse shadow-sm"></div>
-                  )}
                 </div>
                 
                 <span className={cn(

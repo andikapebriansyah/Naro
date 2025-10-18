@@ -20,7 +20,9 @@ import {
   Clock,
   Shield,
   MessageSquare,
-  Info
+  Info,
+  LayoutDashboard,
+  UserCircle2
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
@@ -141,8 +143,15 @@ export function Header() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center">
-              <span className="text-primary-600 font-bold text-lg">N</span>
+            <div className="relative w-10 h-10">
+              <Image
+                src="/logo/image.png"
+                alt="Naro Logo"
+                width={40}
+                height={40}
+                className="w-10 h-10 object-contain"
+                priority
+              />
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">
@@ -293,7 +302,7 @@ export function Header() {
                         className="flex items-center space-x-3 px-4 py-3 hover:bg-primary-50 hover:text-primary-700 transition-all duration-200 rounded-xl mx-2 group"
                         onClick={() => setShowMenu(false)}
                       >
-                        <User className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                        <LayoutDashboard className="h-4 w-4 group-hover:scale-110 transition-transform" />
                         <span className="font-medium">Dashboard</span>
                       </Link>
                       <Link
@@ -301,7 +310,7 @@ export function Header() {
                         className="flex items-center space-x-3 px-4 py-3 hover:bg-primary-50 hover:text-primary-700 transition-all duration-200 rounded-xl mx-2 group"
                         onClick={() => setShowMenu(false)}
                       >
-                        <Settings className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                        <UserCircle2 className="h-4 w-4 group-hover:scale-110 transition-transform" />
                         <span className="font-medium">Profil</span>
                       </Link>
                       <div className="mx-2 my-1 border-t border-gray-100"></div>

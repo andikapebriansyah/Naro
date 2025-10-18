@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/layouts/Header';
-import { ChevronRight, CheckCircle, Shield, FileText, Sparkles } from 'lucide-react';
+import { ChevronRight, CheckCircle, Shield, FileText, Sparkles, Users, Briefcase, Star, ArrowRight, TrendingUp, ShieldCheck, CreditCard, Search, MessageSquare, Clock } from 'lucide-react';
 
 export default function HomePage() {
   const [isVisible, setIsVisible] = useState<{ [key: string]: boolean }>({});
@@ -46,11 +46,11 @@ export default function HomePage() {
       
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 px-4 overflow-hidden">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-pink-400/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        {/* Animated Background Elements - Dashboard colors */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50/30 to-primary-50/40">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
         </div>
 
         <div className="container mx-auto max-w-6xl relative z-10">
@@ -63,14 +63,15 @@ export default function HomePage() {
               }}
             >
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full blur-xl opacity-50 animate-pulse"></div>
-                <div className="relative h-24 w-24 rounded-full overflow-hidden bg-white shadow-2xl flex items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-blue-600 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                <div className="relative h-24 w-24 rounded-2xl overflow-hidden bg-white shadow-2xl flex items-center justify-center p-3">
                   <Image 
                     src="/logo/image.png"
                     alt="Naro Logo"
-                    width={96}
-                    height={96}
-                    className="object-cover"
+                    width={72}
+                    height={72}
+                    className="object-contain"
+                    priority
                   />
                 </div>
               </div>
@@ -78,7 +79,7 @@ export default function HomePage() {
 
             {/* Title with gradient and animation */}
             <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-              <span className="bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent animate-gradient">
+              <span className="bg-gradient-to-r from-gray-900 via-primary-700 to-blue-800 bg-clip-text text-transparent animate-gradient">
                 Naro
               </span>
             </h1>
@@ -89,112 +90,86 @@ export default function HomePage() {
             </p>
 
             {/* CTA Buttons with hover effects */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
               <Link href="/auth/login">
-                <button className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-semibold text-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 overflow-hidden w-full sm:w-auto">
+                <button className="group relative px-8 py-4 bg-gradient-to-r from-primary-600 to-blue-600 text-white rounded-xl font-semibold text-lg hover:shadow-2xl hover:shadow-primary-200/50 transition-all duration-300 hover:scale-105 overflow-hidden w-full sm:w-auto">
                   <span className="relative z-10 flex items-center justify-center gap-2">
                     Mulai Sekarang
-                    <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </span>
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-primary-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </button>
               </Link>
               <Link href="/pekerja">
-                <button className="px-8 py-4 bg-white text-gray-900 rounded-full font-semibold text-lg border-2 border-gray-200 hover:border-purple-600 hover:shadow-lg transition-all duration-300 hover:scale-105 w-full sm:w-auto">
+                <button className="px-8 py-4 bg-white text-gray-900 rounded-xl font-semibold text-lg border-2 border-gray-200 hover:border-primary-600 hover:shadow-lg transition-all duration-300 hover:scale-105 w-full sm:w-auto">
                   Cari Pekerja
                 </button>
               </Link>
             </div>
 
-            {/* Stats */}
-            <div className="flex flex-wrap justify-center gap-8 md:gap-12 text-center">
-              <div className="group">
-                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
-                  10K+
-                </div>
-                <div className="text-gray-600 text-sm md:text-base">Pekerja Aktif</div>
-              </div>
-              <div className="group">
-                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
-                  50K+
-                </div>
-                <div className="text-gray-600 text-sm md:text-base">Pekerjaan Selesai</div>
-              </div>
-              <div className="group">
-                <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-pink-600 to-orange-600 bg-clip-text text-transparent group-hover:scale-110 transition-transform">
-                  4.9★
-                </div>
-                <div className="text-gray-600 text-sm md:text-base">Rating Pengguna</div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 bg-white" id="features" data-animate>
-        <div className="container mx-auto max-w-6xl">
+      {/* Features Section */}
+      <section id="features" className="py-20 bg-gradient-to-br from-gray-50 to-primary-50/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full mb-4">
-              <Sparkles className="w-4 h-4 text-purple-600" />
-              <span className="text-purple-900 font-semibold text-sm">Keunggulan Kami</span>
-            </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Mengapa Pilih Naro?
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-primary-700 to-blue-800 bg-clip-text text-transparent mb-4">
+              Mengapa Memilih Naro?
             </h2>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              Kami menyediakan platform yang aman, transparan, dan mudah digunakan
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Platform yang dirancang untuk memudahkan semua aspek dalam mencari dan menyediakan layanan pekerjaan
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                icon: <CheckCircle className="w-8 h-8" />,
-                title: 'Verifikasi Terpercaya',
-                desc: 'Semua pekerja telah diverifikasi KTP untuk keamanan Anda',
-                gradient: 'from-green-400 to-emerald-600',
+                icon: ShieldCheck,
+                title: "Keamanan Terjamin",
+                description: "Sistem verifikasi ketat dan perlindungan pembayaran yang aman"
               },
               {
-                icon: <Shield className="w-8 h-8" />,
-                title: 'Pembayaran Aman',
-                desc: 'Sistem escrow melindungi pembayaran Anda hingga pekerjaan selesai',
-                gradient: 'from-blue-400 to-indigo-600',
+                icon: CreditCard,
+                title: "Pembayaran Mudah",
+                description: "Berbagai metode pembayaran dengan sistem escrow yang aman"
               },
               {
-                icon: <FileText className="w-8 h-8" />,
-                title: 'Surat Perjanjian',
-                desc: 'Setiap pekerjaan dilindungi dengan surat perjanjian yang jelas',
-                gradient: 'from-purple-400 to-pink-600',
+                icon: Search,
+                title: "Pencarian Cerdas",
+                description: "Temukan pekerja atau pekerjaan yang sesuai dengan kebutuhan Anda"
               },
-            ].map((feature, idx) => (
-              <div
-                key={idx}
-                className="group relative p-8 rounded-3xl bg-gradient-to-br from-gray-50 to-white border border-gray-100 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
-                style={{
-                  animation: isVisible.features ? `fadeInUp 0.6s ease-out ${idx * 0.2}s both` : 'none',
-                }}
-              >
-                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center text-white mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-lg`}>
-                  {feature.icon}
-                </div>
-                <h3 className="text-2xl font-bold mb-3 text-gray-900">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 leading-relaxed">
-                  {feature.desc}
-                </p>
+              {
+                icon: MessageSquare,
+                title: "Komunikasi Langsung",
+                description: "Chat real-time dengan sistem notifikasi yang responsif"
+              },
+              {
+                icon: Star,
+                title: "Sistem Rating",
+                description: "Review dan rating untuk membantu memilih layanan terbaik"
+              },
+              {
+                icon: Clock,
+                title: "24/7 Support",
+                description: "Tim support yang siap membantu kapan saja Anda membutuhkan"
+              }
+            ].map((feature, index) => (
+              <div key={index} className="group bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl hover:shadow-primary-200/30 transition-all duration-300 hover:-translate-y-2 border border-gray-100 hover:border-primary-200">
+                <feature.icon className="w-12 h-12 text-primary-600 mb-6 group-hover:scale-110 transition-transform" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">{feature.title}</h3>
+                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Categories Section */}
-      <section className="py-20 px-4 bg-gradient-to-br from-gray-50 to-gray-100" id="categories" data-animate>
+      </section>      {/* Categories Section */}
+      <section className="py-20 px-4 bg-gradient-to-br from-primary-50/50 to-blue-50/50" id="categories" data-animate>
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary-700 to-blue-800 bg-clip-text text-transparent mb-4">
               Kategori Pekerjaan
             </h2>
             <p className="text-gray-600 text-lg">
@@ -206,12 +181,12 @@ export default function HomePage() {
             {categories.map((category, idx) => (
               <div
                 key={idx}
-                className="group relative bg-white p-8 rounded-2xl hover:shadow-2xl transition-all duration-500 cursor-pointer hover:-translate-y-2 overflow-hidden"
+                className="group relative bg-white p-8 rounded-2xl hover:shadow-2xl hover:shadow-primary-200/30 transition-all duration-500 cursor-pointer hover:-translate-y-2 overflow-hidden border border-gray-100 hover:border-primary-200"
                 style={{
                   animation: isVisible.categories ? `fadeInUp 0.5s ease-out ${idx * 0.1}s both` : 'none',
                 }}
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
+                <div className={`absolute inset-0 bg-gradient-to-br from-primary-500 to-blue-500 opacity-0 group-hover:opacity-10 transition-opacity duration-300`}></div>
                 <div className="relative text-center">
                   <div className="text-5xl mb-4 group-hover:scale-125 transition-transform duration-300">
                     {category.icon}
@@ -228,7 +203,7 @@ export default function HomePage() {
 
       {/* CTA Section */}
       <section className="relative py-24 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-600 via-blue-600 to-primary-700">
           <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
         </div>
         
@@ -238,13 +213,13 @@ export default function HomePage() {
               Siap Memulai?
             </h2>
             <p className="text-xl text-white/90 mb-10 leading-relaxed">
-              Bergabunglah dengan ribuan pengguna yang telah merasakan kemudahan dan keamanan platform Naro
+              Bergabunglah dengan komunitas terpercaya untuk menemukan peluang kerja terbaik dan pekerja profesional di Indonesia
             </p>
             <Link href="/auth/login">
-              <button className="group relative px-10 py-5 bg-white text-purple-600 rounded-full font-bold text-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 overflow-hidden">
+              <button className="group relative px-10 py-5 bg-white text-primary-600 rounded-full font-bold text-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 overflow-hidden">
                 <span className="relative z-10 flex items-center justify-center gap-2">
-                  Daftar Gratis Sekarang
-                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  Mulai Sekarang Gratis
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </span>
               </button>
             </Link>

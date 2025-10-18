@@ -17,7 +17,28 @@ import {
   calculateTaskProgress,
   formatDuration
 } from '@/lib/utils';
-import { Clock, CheckCircle, XCircle, Briefcase, UserCheck, Edit, Trash2, MessageCircle, Phone, AlertCircle, Star, Calendar, MapPin } from 'lucide-react';
+import { 
+  Calendar, 
+  MapPin, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  AlertCircle, 
+  Phone, 
+  MessageCircle, 
+  Star, 
+  Briefcase, 
+  UserCheck,
+  Edit,
+  Trash2,
+  ExternalLink,
+  Building2,
+  Users,
+  ClockIcon,
+  CheckSquare,
+  Ban,
+  Flag
+} from 'lucide-react';
 import { CancelTaskModal } from '@/components/features/tasks/CancelTaskModal';
 import { ReportTaskModal } from '@/components/features/tasks/ReportTaskModal';
 import { ReviewModal } from '@/components/features/tasks/ReviewModal';
@@ -493,8 +514,7 @@ export default function HistoryPage() {
     );
 
     return (
-      <Card className="hover:shadow-lg transition-shadow border-green-100">
-        <CardContent className="p-4">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-green-200/50 bg-gradient-to-br from-green-50/90 to-emerald-50/90 hover:shadow-xl transition-all duration-300 transform hover:scale-[1.01] animate-card-pop p-6">
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
@@ -655,38 +675,39 @@ export default function HistoryPage() {
               </Button>
             </Link>
           </div>
-        </CardContent>
-      </Card>
+      </div>
     );
   };
 
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-gray-50 pb-20">
-        <div className="bg-white border-b sticky top-16 z-40">
-          <div className="container mx-auto px-4 py-4">
-            <h1 className="text-2xl font-bold mb-4">Riwayat Tugas</h1>
+      <main className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/40 pb-20">
+        <div className="bg-white/90 backdrop-blur-sm border-b sticky top-16 z-40 shadow-sm">
+          <div className="container mx-auto px-4 py-6 animate-fade-in">
+            <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-gray-800 to-blue-800 bg-clip-text text-transparent">Riwayat Tugas</h1>
 
-            <div className="flex space-x-2 mb-4">
+            <div className="flex space-x-3 mb-6">
               <button
                 onClick={() => setMode('employer')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'employer'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                className={`flex-1 py-3 px-5 text-sm font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+                  mode === 'employer' 
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 transform scale-[1.02]' 
+                    : 'bg-white/70 backdrop-blur-sm text-gray-600 hover:bg-white/90 hover:shadow-md border border-gray-200'
+                }`}
               >
-                <Briefcase className="h-4 w-4" />
+                <Building2 size={18} />
                 <span>Sebagai Pemberi Kerja</span>
               </button>
               <button
                 onClick={() => setMode('worker')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'worker'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                className={`flex-1 py-3 px-5 text-sm font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+                  mode === 'worker' 
+                    ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-500/25 transform scale-[1.02]' 
+                    : 'bg-white/70 backdrop-blur-sm text-gray-600 hover:bg-white/90 hover:shadow-md border border-gray-200'
+                }`}
               >
-                <UserCheck className="h-4 w-4" />
+                <Users size={18} />
                 <span>Sebagai Pekerja</span>
               </button>
             </div>
@@ -694,14 +715,34 @@ export default function HistoryPage() {
             <div className="flex space-x-2 overflow-x-auto pb-2">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
+                const getTabColor = (tabValue: string, isActive: boolean) => {
+                  if (!isActive) {
+                    return 'bg-white/70 backdrop-blur-sm text-gray-600 hover:bg-white/90 hover:shadow-md border border-gray-200';
+                  }
+                  
+                  switch (tabValue) {
+                    case 'pending':
+                      return 'bg-gradient-to-r from-purple-600 to-violet-600 text-white shadow-lg shadow-purple-500/25';
+                    case 'in_progress':
+                      return 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25';
+                    case 'completed':
+                      return 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg shadow-green-500/25';
+                    case 'cancelled':
+                      return 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-lg shadow-red-500/25';
+                    case 'reported':
+                      return 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg shadow-orange-500/25';
+                    default:
+                      return 'bg-gradient-to-r from-gray-600 to-slate-600 text-white shadow-lg shadow-gray-500/25';
+                  }
+                };
+                
                 return (
                   <button
                     key={tab.value}
                     onClick={() => setActiveTab(tab.value)}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === tab.value
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                    className={`flex items-center space-x-2 px-4 py-3 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-300 ${getTabColor(tab.value, activeTab === tab.value)} ${
+                      activeTab === tab.value ? 'transform scale-[1.02]' : ''
+                    }`}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{tab.label}</span>
@@ -712,33 +753,38 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 py-6 animate-slide-up">
           {isLoading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Memuat...</p>
+            <div className="text-center py-16">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600 mx-auto"></div>
+              <p className="mt-6 text-gray-600 font-medium">Memuat riwayat tugas...</p>
             </div>
           ) : tasks.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <p className="text-gray-500">
-                  Belum ada tugas {getTabStatusText(activeTab).toLowerCase()}
-                  {mode === 'employer' ? ' yang Anda buat' : ' yang Anda kerjakan'}
-                </p>
-                {mode === 'employer' && activeTab !== 'reported' ? (
-                  <Link href="/tugas/buat">
-                    <Button className="mt-4">Buat Tugas Baru</Button>
-                  </Link>
-                ) : mode === 'worker' && activeTab !== 'reported' ? (
-                  <Link href="/dashboard">
-                    <Button className="mt-4">Cari Pekerjaan</Button>
-                  </Link>
-                ) : null}
-              </CardContent>
-            </Card>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200 p-12 text-center animate-card-pop">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ClockIcon className="w-8 h-8 text-gray-400" />
+              </div>
+              <p className="text-gray-500 text-lg font-medium mb-6">
+                Belum ada tugas {getTabStatusText(activeTab).toLowerCase()}
+                {mode === 'employer' ? ' yang Anda buat' : ' yang Anda kerjakan'}
+              </p>
+              {mode === 'employer' && activeTab !== 'reported' ? (
+                <Link href="/tugas/buat">
+                  <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-[1.02]">
+                    Buat Tugas Baru
+                  </div>
+                </Link>
+              ) : mode === 'worker' && activeTab !== 'reported' ? (
+                <Link href="/dashboard">
+                  <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 transition-all duration-300 transform hover:scale-[1.02]">
+                    Cari Pekerjaan
+                  </div>
+                </Link>
+              ) : null}
+            </div>
           ) : (
             <div className="space-y-4">
-              {tasks.map((task) => {
+              {tasks.map((task, index) => {
                 const progress = calculateTaskProgress(
                   task.startDate,
                   task.startTime,
@@ -749,12 +795,11 @@ export default function HistoryPage() {
                 const contactPerson = mode === 'employer' ? task.assignedTo : task.poster;
 
                 return (
-                  <div key={task._id}>
+                  <div key={task._id} className="animate-slide-up" style={{animationDelay: `${index * 100}ms`}}>
                     {activeTab === 'completed' ? (
                       renderCompletedTaskCard(task)
                     ) : activeTab === 'reported' ? (
-                      <Card className="hover:shadow-lg transition-shadow border-2 border-orange-200 bg-orange-50">
-                        <CardContent className="p-4">
+                      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-orange-300/50 bg-gradient-to-br from-orange-50/90 to-amber-50/90 hover:shadow-xl transition-all duration-300 transform hover:scale-[1.01] animate-card-pop p-6">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
                               <h3 className="font-semibold text-lg mb-1">{task.title}</h3>
@@ -775,13 +820,13 @@ export default function HistoryPage() {
                             </span>
                           </div>
 
-                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
-                            <div className="flex items-center space-x-1">
-                              <span>📍</span>
+                          <div className="flex items-center space-x-6 text-sm text-gray-600 mb-6">
+                            <div className="flex items-center space-x-2">
+                              <MapPin className="w-4 h-4 text-orange-500" />
                               <span>{task.location}</span>
                             </div>
-                            <div className="flex items-center space-x-1">
-                              <span>📅</span>
+                            <div className="flex items-center space-x-2">
+                              <Calendar className="w-4 h-4 text-orange-500" />
                               <span>{formatDate(task.startDate)}</span>
                             </div>
                           </div>
@@ -914,29 +959,28 @@ export default function HistoryPage() {
                               )}
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
+                      </div>
                     ) : activeTab === 'in_progress' ? (
-                      <Card className="hover:shadow-lg transition-shadow">
-                        <CardContent className="p-4">
+                      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-200/50 bg-gradient-to-br from-blue-50/90 to-indigo-50/90 hover:shadow-xl transition-all duration-300 transform hover:scale-[1.01] animate-card-pop p-6">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
                               <h3 className="font-semibold text-lg mb-1">{task.title}</h3>
                               <p className="text-sm text-gray-600">{task.category}</p>
                             </div>
-                            <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-medium">
+                            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs px-4 py-2 rounded-xl font-semibold flex items-center gap-2 shadow-sm">
+                              <ClockIcon className="w-3 h-3" />
                               Proses
-                            </span>
+                            </div>
                           </div>
 
-                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
-                            <div className="flex items-center space-x-1">
-                              <span>📍</span>
+                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-6">
+                            <div className="flex items-center space-x-2">
+                              <MapPin className="w-4 h-4 text-blue-500" />
                               <span>{task.location}</span>
                             </div>
                           </div>
 
-                          <div className="bg-blue-50 rounded-lg p-3 mb-4">
+                          <div className="bg-gradient-to-br from-blue-50/90 to-indigo-50/90 backdrop-blur-sm rounded-xl p-4 mb-6 border border-blue-200/50">
                             <div className="grid grid-cols-2 gap-3 text-xs">
                               <div>
                                 <div className="text-gray-500 mb-1">Tanggal Mulai</div>
@@ -1081,11 +1125,15 @@ export default function HistoryPage() {
                               )}
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
+                      </div>
                     ) : (
-                      <Card className="hover:shadow-lg transition-shadow">
-                        <CardContent className="p-4">
+                      <div className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border hover:shadow-xl transition-all duration-300 transform hover:scale-[1.01] animate-card-pop p-6 ${
+                        task.status === 'cancelled' 
+                          ? 'border-red-300/50 bg-gradient-to-br from-red-50/90 to-rose-50/90' 
+                          : task.status === 'pending'
+                          ? 'border-purple-300/50 bg-gradient-to-br from-purple-50/90 to-violet-50/90'
+                          : 'border-gray-200'
+                      }`}>
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <h3 className="font-semibold mb-1">{task.title}</h3>
@@ -1101,31 +1149,46 @@ export default function HistoryPage() {
                                 </p>
                               )}
                             </div>
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full ${
-                                task.status === 'completed_worker'
-                                  ? 'bg-purple-100 text-purple-700'
+                            <div
+                              className={`text-xs px-4 py-2 rounded-xl font-semibold shadow-sm flex items-center gap-2 ${
+                                task.status === 'cancelled'
+                                  ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white'
+                                  : task.status === 'completed_worker'
+                                  ? 'bg-gradient-to-r from-purple-600 to-violet-600 text-white'
+                                  : task.status === 'pending'
+                                  ? 'bg-gradient-to-r from-purple-600 to-violet-600 text-white'
                                   : mode === 'worker' && task.applicationStatus
-                                  ? getApplicationStatusColor(task.applicationStatus)
-                                  : getStatusColor(task.status)
+                                  ? 'bg-gradient-to-r from-gray-600 to-slate-600 text-white'
+                                  : 'bg-gradient-to-r from-gray-600 to-slate-600 text-white'
                                 }`}
                             >
+                              {task.status === 'cancelled' && <Ban className="w-3 h-3" />}
+                              {task.status === 'pending' && <ClockIcon className="w-3 h-3" />}
+                              {task.status === 'completed_worker' && <CheckSquare className="w-3 h-3" />}
                               {task.status === 'completed_worker'
                                 ? 'Menunggu Konfirmasi'
                                 : mode === 'worker' && task.applicationStatus
                                 ? getApplicationStatusLabel(task.applicationStatus)
                                 : getStatusLabel(task.status)
                               }
-                            </span>
+                            </div>
                           </div>
 
-                          <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-                            <div className="flex items-center space-x-1">
-                              <span>📍</span>
+                          <div className="flex items-center space-x-6 text-sm text-gray-600 mb-4">
+                            <div className="flex items-center space-x-2">
+                              <MapPin className={`w-4 h-4 ${
+                                task.status === 'cancelled' ? 'text-red-500' : 
+                                task.status === 'pending' ? 'text-purple-500' : 
+                                'text-gray-500'
+                              }`} />
                               <span>{task.location}</span>
                             </div>
-                            <div className="flex items-center space-x-1">
-                              <span>📅</span>
+                            <div className="flex items-center space-x-2">
+                              <Calendar className={`w-4 h-4 ${
+                                task.status === 'cancelled' ? 'text-red-500' : 
+                                task.status === 'pending' ? 'text-purple-500' : 
+                                'text-gray-500'
+                              }`} />
                               <span>{formatDate(task.startDate)}</span>
                             </div>
                           </div>
@@ -1193,8 +1256,7 @@ export default function HistoryPage() {
                               </Link>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
+                      </div>
                     )}
                   </div>
                 );

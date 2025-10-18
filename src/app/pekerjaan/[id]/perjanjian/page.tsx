@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Loader2, ArrowLeft, CheckCircle, AlertTriangle, FileText, Scale } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { PDFPreview } from '@/components/features/tasks/PDFPreview';
 
 export default function WorkerAgreementPage() {
   const params = useParams();
@@ -321,6 +322,29 @@ export default function WorkerAgreementPage() {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Preview Surat Perjanjian Lengkap */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <FileText className="w-5 h-5 text-primary-600" />
+                <span>Preview Surat Perjanjian Kerja Lengkap</span>
+              </CardTitle>
+              <p className="text-sm text-gray-600">
+                Lihat dokumen perjanjian lengkap sebelum menyetujui
+              </p>
+            </CardHeader>
+            <CardContent>
+              <PDFPreview 
+                task={job}
+                clauses={job.agreement?.clauses || []}
+                customClauses={job.agreement?.customClauses || ''}
+                posterName={job.posterId?.name || ''}
+                currentUserName={session?.user?.name || ''}
+                showDownloadButton={true}
+              />
             </CardContent>
           </Card>
 

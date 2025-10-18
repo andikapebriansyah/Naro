@@ -13,7 +13,7 @@ export default function PaymentPage() {
   const params = useParams();
   const router = useRouter();
   const { data: session } = useSession();
-  const taskId = params.id as string;
+  const taskId = params?.id as string;
 
   const [task, setTask] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,6 +21,8 @@ export default function PaymentPage() {
   const [selectedMethod, setSelectedMethod] = useState('card');
   const [selectedBank, setSelectedBank] = useState('bca');
   const [selectedEwallet, setSelectedEwallet] = useState('gopay');
+  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTask();
@@ -66,29 +68,100 @@ export default function PaymentPage() {
     setIsProcessing(true);
 
     try {
-      // Langsung update status tugas ke 'open' tanpa proses pembayaran kompleks
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: 'PUT',
+      const costs = calculateCosts();
+      
+      // Validasi amount minimal
+      if (costs.total < 10000) {
+        toast.error('Jumlah pembayaran minimal Rp 10.000');
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log('Creating invoice for task:', taskId);
+      console.log('Payment amount:', costs.total);
+      
+      const payload = {
+        taskId: taskId,
+        amount: costs.total,
+        payerEmail: session?.user?.email || 'customer@example.com',
+        description: `Pembayaran untuk ${task.title}`,
+        items: [
+          {
+            name: 'Upah Pekerja',
+            quantity: 1,
+            price: costs.workerWage,
+            category: 'Worker Wage'
+          },
+          {
+            name: 'Biaya Layanan (5%)',
+            quantity: 1,
+            price: costs.serviceFee,
+            category: 'Service Fee'
+          },
+          {
+            name: 'Biaya Admin',
+            quantity: 1,
+            price: costs.adminFee,
+            category: 'Admin Fee'
+          }
+        ]
+      };
+
+      // Log payload untuk debug
+      console.log('Invoice payload:', JSON.stringify(payload, null, 2));
+      
+      // Create Xendit invoice
+      const response = await fetch('/api/xendit/create-invoice', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: 'open',
-          paymentMethod: selectedMethod,
-          paymentStatus: 'completed',
-          paymentAmount: calculateCosts().total,
-          paymentDate: new Date()
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
+      console.log('Invoice response:', data);
 
-      if (data.success) {
-        toast.success('Tugas berhasil dipublikasikan!');
-        router.push('/dashboard');
-      } else {
-        toast.error(data.error || 'Gagal mempublikasikan tugas');
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Gagal membuat invoice');
       }
-    } catch (error) {
-      toast.error('Terjadi kesalahan saat mempublikasikan tugas');
+
+      if (data.success && data.data) {
+        // Save invoice info
+        setInvoiceId(data.data.id);
+        setInvoiceUrl(data.data.invoiceUrl);
+        
+        console.log('Updating task with invoice info...');
+        
+        // Update task with invoice info
+        const updateResponse = await fetch(`/api/tasks/${taskId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paymentMethod: selectedMethod,
+            paymentStatus: 'pending',
+            paymentAmount: costs.total,
+            xenditInvoiceId: data.data.id,
+            xenditExternalId: data.data.externalId
+          }),
+        });
+
+        if (!updateResponse.ok) {
+          console.warn('Failed to update task, but continuing with payment');
+        }
+
+        // Redirect to Xendit payment page
+        console.log('Redirecting to:', data.data.invoiceUrl);
+        toast.success('Membuka halaman pembayaran Xendit...');
+        
+        // Delay sedikit agar toast terlihat
+        setTimeout(() => {
+          window.location.href = data.data.invoiceUrl;
+        }, 500);
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
     } finally {
       setIsProcessing(false);
     }
@@ -176,88 +249,50 @@ export default function PaymentPage() {
           {/* Payment Methods */}
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Metode Pembayaran</CardTitle>
+              <CardTitle>Metode Pembayaran Xendit</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Card Payment */}
-              <div
-                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                  selectedMethod === 'card' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'
-                }`}
-                onClick={() => setSelectedMethod('card')}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                    selectedMethod === 'card' ? 'border-primary-500' : 'border-gray-300'
-                  }`}>
-                    {selectedMethod === 'card' && (
-                      <div className="w-3 h-3 bg-primary-500 rounded-full"></div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="w-11 h-11 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <CreditCard className="h-6 w-6 text-gray-600" />
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium text-blue-900 text-sm mb-1">
+                      Xendit Test Mode
                     </div>
-                    <div>
-                      <div className="font-semibold">Kartu Kredit/Debit</div>
-                      <div className="text-sm text-gray-600">Visa, Mastercard</div>
-                    </div>
-                  </div>
-                  <div className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">
-                    Populer
-                  </div>
-                </div>
-              </div>
-
-              {/* Bank Transfer */}
-              <div
-                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                  selectedMethod === 'bank' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'
-                }`}
-                onClick={() => setSelectedMethod('bank')}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                    selectedMethod === 'bank' ? 'border-primary-500' : 'border-gray-300'
-                  }`}>
-                    {selectedMethod === 'bank' && (
-                      <div className="w-3 h-3 bg-primary-500 rounded-full"></div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="w-11 h-11 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <Building2 className="h-6 w-6 text-gray-600" />
-                    </div>
-                    <div>
-                      <div className="font-semibold">Transfer Bank</div>
-                      <div className="text-sm text-gray-600">BCA, Mandiri, BNI, BRI</div>
+                    <div className="text-blue-700 text-sm space-y-1">
+                      <p>Anda akan diarahkan ke halaman pembayaran Xendit yang mendukung:</p>
+                      <ul className="list-disc list-inside ml-2 space-y-1">
+                        <li>Kartu Kredit/Debit (Visa, Mastercard)</li>
+                        <li>Transfer Bank (BCA, Mandiri, BNI, BRI, dll)</li>
+                        <li>E-Wallet (GoPay, OVO, DANA, ShopeePay, LinkAja)</li>
+                        <li>Virtual Account</li>
+                        <li>Retail Outlet (Alfamart, Indomaret)</li>
+                      </ul>
+                      <p className="mt-2 font-medium">
+                        Mode test: Gunakan kredensial test dari dokumentasi Xendit
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* E-Wallet */}
-              <div
-                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                  selectedMethod === 'ewallet' ? 'border-primary-500 bg-primary-50' : 'border-gray-200'
-                }`}
-                onClick={() => setSelectedMethod('ewallet')}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                    selectedMethod === 'ewallet' ? 'border-primary-500' : 'border-gray-300'
-                  }`}>
-                    {selectedMethod === 'ewallet' && (
-                      <div className="w-3 h-3 bg-primary-500 rounded-full"></div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="w-11 h-11 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <Smartphone className="h-6 w-6 text-gray-600" />
+              {/* Test Payment Info */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Shield className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium text-yellow-900 text-sm mb-1">
+                      Cara Test Pembayaran
                     </div>
-                    <div>
-                      <div className="font-semibold">E-Wallet</div>
-                      <div className="text-sm text-gray-600">GoPay, OVO, DANA, ShopeePay</div>
+                    <div className="text-yellow-800 text-sm space-y-1">
+                      <p><strong>Kartu Test:</strong></p>
+                      <ul className="list-disc list-inside ml-2">
+                        <li>Nomor: 4000 0000 0000 0002</li>
+                        <li>CVV: 123</li>
+                        <li>Exp: 12/25</li>
+                      </ul>
+                      <p className="mt-2"><strong>Virtual Account:</strong> Akan generate nomor VA otomatis</p>
+                      <p><strong>E-Wallet:</strong> Simulasi pembayaran di dashboard Xendit</p>
                     </div>
                   </div>
                 </div>
@@ -265,94 +300,41 @@ export default function PaymentPage() {
             </CardContent>
           </Card>
 
-          {/* Payment Details - Card */}
-          {selectedMethod === 'card' && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Detail Kartu</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-                  <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <div className="font-medium text-blue-900 text-sm">Mode Demo</div>
-                    <div className="text-blue-700 text-sm">
-                      Tidak perlu mengisi detail kartu. Klik "Bayar Sekarang" untuk langsung mempublikasikan tugas.
-                    </div>
-                  </div>
+          {/* Cost Breakdown */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Rincian Biaya</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Upah Pekerja</span>
+                  <span className="font-semibold">{formatCurrency(costs.workerWage)}</span>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Payment Details - Bank */}
-          {selectedMethod === 'bank' && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Pilih Bank</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  {banks.map((bank) => (
-                    <div
-                      key={bank.id}
-                      className={`p-3 text-center border-2 rounded-lg cursor-pointer transition-all ${
-                        selectedBank === bank.id ? 'border-primary-500 bg-primary-50' : 'border-gray-200 bg-gray-50'
-                      }`}
-                      onClick={() => setSelectedBank(bank.id)}
-                    >
-                      <div className="text-2xl mb-2">{bank.icon}</div>
-                      <div className="text-sm font-semibold text-gray-700">{bank.name}</div>
-                    </div>
-                  ))}
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Biaya Layanan (5%)</span>
+                  <span className="font-semibold">{formatCurrency(costs.serviceFee)}</span>
                 </div>
-
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-start gap-2">
-                  <Info className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-orange-800">
-                    Mode demo: Klik "Bayar Sekarang" untuk langsung mempublikasikan tugas
-                  </p>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Biaya Admin</span>
+                  <span className="font-semibold">{formatCurrency(costs.adminFee)}</span>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Payment Details - E-Wallet */}
-          {selectedMethod === 'ewallet' && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>Pilih E-Wallet</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  {ewallets.map((ewallet) => (
-                    <div
-                      key={ewallet.id}
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all flex items-center gap-3 ${
-                        selectedEwallet === ewallet.id ? 'border-primary-500 bg-primary-50' : 'border-gray-200 bg-gray-50'
-                      }`}
-                      onClick={() => setSelectedEwallet(ewallet.id)}
-                    >
-                      <div className="text-2xl">{ewallet.icon}</div>
-                      <div className="text-sm font-semibold text-gray-700">{ewallet.name}</div>
-                    </div>
-                  ))}
+                <div className="border-t pt-3 flex justify-between">
+                  <span className="text-lg font-bold">Total</span>
+                  <span className="text-lg font-bold text-primary-600">
+                    {formatCurrency(costs.total)}
+                  </span>
                 </div>
-
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-start gap-2">
-                  <Info className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-orange-800">
-                    Mode demo: Klik "Bayar Sekarang" untuk langsung mempublikasikan tugas
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Security Info */}
-          <div className="flex items-center justify-center gap-2 p-3 bg-gray-100 rounded-lg mb-6">
-            <Shield className="h-5 w-5 text-gray-600" />
-            <span className="text-sm text-gray-600">Mode Demo - Tidak ada pembayaran yang sebenarnya diproses</span>
+          <div className="flex items-center justify-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg mb-6">
+            <Shield className="h-5 w-5 text-green-600" />
+            <span className="text-sm text-green-800 font-medium">
+              Pembayaran Aman dengan Xendit (Test Mode)
+            </span>
           </div>
         </div>
 
@@ -371,10 +353,10 @@ export default function PaymentPage() {
               {isProcessing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Mempublikasikan Tugas...
+                  Membuat Invoice...
                 </>
               ) : (
-                'Publikasikan Tugas'
+                'Bayar Sekarang'
               )}
             </Button>
           </div>

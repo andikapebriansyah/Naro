@@ -11,6 +11,7 @@ import { Loader2, ArrowLeft, MapPin, Calendar, Clock, DollarSign, User, Star, Ch
 import { getInitials } from '@/lib/utils';
 import Link from 'next/link';
 import { useProfileValidation } from '@/lib/hooks/useProfileValidation';
+import { PDFPreview } from '@/components/features/tasks/PDFPreview';
 
 export default function JobDetailPage() {
   const params = useParams();
@@ -522,70 +523,20 @@ export default function JobDetailPage() {
               <Card className="mb-6">
                 <CardHeader>
                   <CardTitle>Surat Perjanjian Kerja</CardTitle>
-                  <p className="text-gray-600">Preview dokumen perjanjian</p>
+                  <p className="text-gray-600">Preview dokumen perjanjian lengkap</p>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Agreement Preview */}
+                  {/* Full PDF Preview */}
                   <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="bg-white rounded p-6 text-sm space-y-3 border">
-                      <div className="text-center">
-                        <h4 className="font-bold text-lg">SURAT PERJANJIAN KERJA</h4>
-                        <p className="text-gray-600">Nomor: NARO/2025/{job._id.slice(-6)}</p>
-                      </div>
-
-                      <div className="border-t pt-3">
-                        <p className="mb-2">
-                          Perjanjian ini dibuat pada tanggal{' '}
-                          {new Date().toLocaleDateString('id-ID', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                        <div>
-                          <p className="font-semibold text-gray-800">Pemberi Kerja:</p>
-                          <p>{job.posterId?.name || '[Nama Pemberi Kerja]'}</p>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800">Pekerja:</p>
-                          <p>{session?.user?.name || '[Nama Anda]'}</p>
-                        </div>
-                      </div>
-
-                      <div className="border-t pt-3">
-                        <h5 className="font-semibold mb-2">Detail Pekerjaan:</h5>
-                        <div className="space-y-1">
-                          <p><span className="font-medium">Judul:</span> {job.title}</p>
-                          <p><span className="font-medium">Kategori:</span> {getCategoryLabel(job.category)}</p>
-                          <p><span className="font-medium">Lokasi:</span> {job.location}</p>
-                          <p><span className="font-medium">Jadwal:</span> {formatDate(job.scheduledDate)} - {job.scheduledTime}</p>
-                          <p><span className="font-medium">Nilai Kontrak:</span> {formatCurrency(job.budget)}</p>
-                        </div>
-                      </div>
-
-                      <div className="border-t pt-3">
-                        <p className="text-gray-600 text-xs">
-                          * Dokumen lengkap dengan ketentuan dan klausul dapat diunduh menggunakan tombol di bawah
-                        </p>
-                      </div>
-                    </div>
+                    <PDFPreview 
+                      task={job} 
+                      showDownloadButton={true}
+                      currentUserName={session?.user?.name || ''}
+                    />
                   </div>
 
-                  {/* Download and Action Buttons */}
+                  {/* Action Buttons */}
                   <div className="flex flex-col gap-3">
-                    <Button
-                      variant="outline"
-                      className="w-full border-blue-600 text-blue-600 hover:bg-blue-50"
-                      onClick={() => {
-                        window.open(`/api/tasks/${job._id}/agreement/download`, '_blank');
-                      }}
-                    >
-                      📄 Unduh Surat Perjanjian Lengkap (PDF)
-                    </Button>
-
                     {!canAccessFeatures && (
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 text-yellow-700 flex-shrink-0 mt-0.5" />

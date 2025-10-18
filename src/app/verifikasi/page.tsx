@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layouts/Header';
@@ -19,10 +19,19 @@ export default function VerificationPage() {
   const [selfiePreview, setSelfiePreview] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [extractedData, setExtractedData] = useState<any>(null);
+  const [verificationStatus, setVerificationStatus] = useState<'not_submitted' | 'pending' | 'approved' | 'rejected'>('not_submitted');
   
   // File validation states
   const [ktpFileError, setKtpFileError] = useState<string>('');
   const [selfieFileError, setSelfieFileError] = useState<string>('');
+
+  // Check verification status on mount
+  useEffect(() => {
+    if (session?.user) {
+      const status = (session.user as any).verificationStatus || 'not_submitted';
+      setVerificationStatus(status);
+    }
+  }, [session]);
 
   const handleKtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -152,6 +161,54 @@ export default function VerificationPage() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Pending Verification Alert */}
+              {verificationStatus === 'pending' && (
+                <div className="bg-gradient-to-r from-purple-50 to-purple-100 border-2 border-purple-300 rounded-lg p-5 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl">⏳</div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-purple-900 mb-2 text-lg">Verifikasi Sedang Diproses</h3>
+                      <p className="text-sm text-purple-800 mb-3">
+                        Verifikasi KTP Anda sedang dalam proses peninjauan oleh admin. Mohon tunggu beberapa saat.
+                      </p>
+                      <div className="bg-purple-200 rounded-lg p-3 mb-2">
+                        <p className="text-xs text-purple-900 font-semibold">
+                          📌 Status: <span className="px-2 py-1 bg-purple-300 rounded-full">Menunggu Persetujuan</span>
+                        </p>
+                      </div>
+                      <p className="text-xs text-purple-700">
+                        Anda akan menerima notifikasi setelah verifikasi disetujui.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Approved Verification Alert */}
+              {verificationStatus === 'approved' && session?.user.isVerified && (
+                <div className="bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-lg p-5 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl">✅</div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-green-900 mb-2 text-lg">Verifikasi Berhasil!</h3>
+                      <p className="text-sm text-green-800">
+                        Akun Anda telah terverifikasi. Silakan lengkapi profil Anda untuk mengakses semua fitur.
+                      </p>
+                      <Button 
+                        onClick={() => router.push('/profil')} 
+                        className="mt-3"
+                        size="sm"
+                      >
+                        Lengkapi Profil
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Only show upload form if not yet submitted or rejected */}
+              {(verificationStatus === 'not_submitted' || verificationStatus === 'rejected') && (
+                <>
               {/* Info Box */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <h3 className="font-semibold text-blue-900 mb-2">
@@ -421,6 +478,8 @@ export default function VerificationPage() {
                   </p>
                 </div>
               </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

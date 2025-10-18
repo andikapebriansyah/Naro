@@ -27,7 +27,11 @@ import {
   Wallet,
   TrendingUp,
   ArrowRight,
-  Shield
+  Shield,
+  DollarSign,
+  Award,
+  Building2,
+  Briefcase
 } from 'lucide-react';
 
 const workCategories = [
@@ -272,9 +276,19 @@ export default function ProfilPage() {
     }
     
     if (session?.user) {
+      // Update profileData name from session if it's empty
+      if (session.user.name && !profileData.name) {
+        setProfileData(prev => ({
+          ...prev,
+          name: session.user.name || '',
+          phone: session.user.phone || prev.phone,
+          about: session.user.about || prev.about,
+          workCategories: session.user.workCategories || prev.workCategories,
+        }));
+      }
       loadProfileData();
     }
-  }, [status, router, session]);
+  }, [status, router, session, profileData.name]);
 
   const loadProfileData = async () => {
     try {
@@ -621,99 +635,97 @@ export default function ProfilPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-gray-50 pb-20">
-        <div className="container mx-auto max-w-4xl px-4 py-6">
+      <main className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/40 pb-20">
+        <div className="container mx-auto max-w-4xl px-4 py-6 animate-fade-in">
           {/* Profile Header */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center">
-                    <User className="h-10 w-10 text-primary-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 mb-6 shadow-lg border border-white/30 animate-slide-down">
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex items-center space-x-6">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-2xl flex items-center justify-center shadow-lg">
+                  <User className="h-12 w-12 text-blue-600" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                    {session?.user?.name || profileData.name || 'Pengguna'}
+                  </h1>
+                  <p className="text-gray-600 mb-2">NIK: {profileData.nik}</p>
+                  <div className="flex items-center text-gray-600">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    <span className="text-sm">{profileData.address}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Badge 
+                variant={profileData.isVerified ? "default" : "secondary"}
+                className={`${profileData.isVerified 
+                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-md' 
+                  : 'bg-gray-200 text-gray-700'
+                } px-4 py-2 text-sm font-semibold`}
+              >
+                {profileData.isVerified ? "✓ Terverifikasi Admin" : "⚠️ Belum Diverifikasi"}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Financial Summary */}
+          <div className="mb-6">
+            <div className="bg-gradient-to-br from-emerald-500 via-green-600 to-teal-700 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden animate-card-pop">
+              {/* Background Pattern */}
+              <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+              <div className="absolute -top-8 -right-8 w-24 h-24 bg-white/10 rounded-full"></div>
+              <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full"></div>
+              
+              <div className="relative flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm shadow-lg">
+                    <DollarSign className="w-10 h-10 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                      {profileData.name}
-                      {profileData.isVerified && (
-                        <CheckCircle className="h-6 w-6 text-green-500" />
-                      )}
-                    </h1>
-                    <p className="text-gray-600">NIK: {profileData.nik}</p>
-                    <div className="flex items-center text-gray-600 mt-1">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      <span className="text-sm">{profileData.address}</span>
+                    <div className="text-sm font-semibold text-white/90 mb-2">Total Pendapatan</div>
+                    <div className="text-4xl font-bold text-white mb-2">
+                      {formatCurrency(profileData.totalEarnings)}
+                    </div>
+                    <div className="text-sm text-white/80">
+                      Dari pekerjaan yang telah diselesaikan
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="mb-4">
-                <Badge variant={profileData.isVerified ? "default" : "secondary"}>
-                  {profileData.isVerified ? "Terverifikasi Admin" : "Belum Diverifikasi"}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Financial Summary */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <Wallet className="h-8 w-8 opacity-80" />
+                <div className="text-8xl opacity-20">
+                  <TrendingUp className="w-20 h-20 text-white/30" />
                 </div>
-                <div className="text-sm opacity-90 mb-1">Saldo Saat Ini</div>
-                <div className="text-2xl font-bold">{formatCurrency(profileData.balance)}</div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-3 bg-white text-blue-600 hover:bg-blue-50"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    console.log('Navigating to /profil/penarikan');
-                    router.push('/profil/penarikan');
-                  }}
-                >
-                  Tarik Saldo
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <TrendingUp className="h-8 w-8 opacity-80" />
-                </div>
-                <div className="text-sm opacity-90 mb-1">Total Pendapatan</div>
-                <div className="text-2xl font-bold">{formatCurrency(profileData.totalEarnings)}</div>
-                <div className="text-xs opacity-75 mt-1">Tidak dapat ditarik</div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
           {/* General Profile Information */}
-          <Card className="mb-6">
-            <CardHeader>
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/30 mb-6 animate-slide-up">
+            <div className="p-6 border-b border-gray-100">
               <div className="flex items-center justify-between">
-                <CardTitle>Informasi Umum</CardTitle>
+                <h2 className="text-xl font-bold text-gray-900">Informasi Umum</h2>
                 <div className="flex space-x-2">
                   {!isEditing && (
-                    <Button variant="outline" onClick={handleEdit}>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleEdit}
+                      className="bg-white/80 backdrop-blur-sm border-white/40 hover:bg-white/90 transition-all duration-300 transform hover:scale-105"
+                    >
                       <Edit3 className="h-4 w-4 mr-2" />
                       Edit
                     </Button>
                   )}
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-6">
               {isEditing ? (
                 <div className="space-y-4">
                   {/* Phone */}
                   <div>
                     <Label htmlFor="phone">Nomor HP *</Label>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-1">
                       <Input
                         id="phone"
                         type="tel"
@@ -728,7 +740,7 @@ export default function ProfilPage() {
                           variant="outline"
                           onClick={handlePhoneVerification}
                           disabled={loading}
-                          className="whitespace-nowrap"
+                          className="w-full sm:w-auto whitespace-nowrap"
                         >
                           <Shield className="h-4 w-4 mr-2" />
                           Verifikasi
@@ -736,7 +748,7 @@ export default function ProfilPage() {
                       )}
                     </div>
                     {profileData.phoneVerified && (
-                      <div className="text-xs text-green-600 mt-1 flex items-center">
+                      <div className="text-xs text-green-600 mt-2 flex items-center">
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Nomor HP terverifikasi
                       </div>
@@ -748,7 +760,7 @@ export default function ProfilPage() {
                     <Label htmlFor="location">
                       Alamat Lokasi <span className="text-red-500">*</span>
                     </Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-1">
                       <Input
                         id="location"
                         placeholder="Contoh: Jl. T. Nyak Arief No. 123, Banda Aceh"
@@ -764,9 +776,10 @@ export default function ProfilPage() {
                           setTempCoordinates((editData.locationCoordinates || profileData.locationCoordinates) || { lat: 0, lng: 0 });
                           setShowMapModal(true);
                         }}
-                        className="px-3"
+                        className="w-full sm:w-auto px-3"
                       >
-                        📍 Maps
+                        <MapPin className="h-4 w-4 mr-2" />
+                        Pilih di Maps
                       </Button>
                     </div>
                     {((editData.locationCoordinates || profileData.locationCoordinates) && 
@@ -791,12 +804,21 @@ export default function ProfilPage() {
                     />
                   </div>
 
-                  <div className="flex space-x-2 pt-4">
-                    <Button onClick={handleSave} disabled={loading}>
+                  <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2 pt-4">
+                    <Button 
+                      onClick={handleSave} 
+                      disabled={loading}
+                      className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                    >
                       <Save className="h-4 w-4 mr-2" />
                       {loading ? 'Menyimpan...' : 'Simpan'}
                     </Button>
-                    <Button variant="outline" onClick={() => { setEditData({}); setIsEditing(false); }} disabled={loading}>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => { setEditData({}); setIsEditing(false); }} 
+                      disabled={loading}
+                      className="flex-1 sm:flex-none bg-white/80 backdrop-blur-sm border-white/40 hover:bg-white/90"
+                    >
                       <X className="h-4 w-4 mr-2" />
                       Batal
                     </Button>
@@ -806,12 +828,15 @@ export default function ProfilPage() {
                 <div className="space-y-4">
                   <div>
                     <Label>Nomor HP</Label>
-                    <div className="flex items-center justify-between mt-1">
-                      <div className="flex items-center">
-                        <Phone className="h-4 w-4 mr-2 text-gray-500" />
-                        <span>{profileData.phone || 'Belum diisi'}</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-1">
+                      <div className="flex items-center flex-1 min-w-0">
+                        <Phone className="h-4 w-4 mr-2 text-gray-500 flex-shrink-0" />
+                        <span className="truncate">{profileData.phone || 'Belum diisi'}</span>
                         {profileData.phoneVerified && (
-                          <CheckCircle className="h-4 w-4 ml-2 text-green-500" />
+                          <div className="flex items-center ml-2 bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Terverifikasi
+                          </div>
                         )}
                       </div>
                       {!profileData.phoneVerified && profileData.phone && (
@@ -820,7 +845,9 @@ export default function ProfilPage() {
                           variant="outline"
                           onClick={handlePhoneVerification}
                           disabled={loading}
+                          className="w-full sm:w-auto flex-shrink-0"
                         >
+                          <Shield className="h-3 w-3 mr-2" />
                           Verifikasi
                         </Button>
                       )}
@@ -852,14 +879,14 @@ export default function ProfilPage() {
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Withdrawal Method */}
-          <Card className="mb-6">
-            <CardHeader>
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/30 mb-6 animate-card-pop">
+            <div className="p-6 border-b border-gray-100">
               <div className="flex items-center justify-between">
-                <CardTitle>Metode Penarikan</CardTitle>
+                <h2 className="text-xl font-bold text-gray-900">Metode Penarikan</h2>
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -869,13 +896,14 @@ export default function ProfilPage() {
                     }
                     setShowWithdrawalMethodModal(true);
                   }}
+                  className="bg-white/80 backdrop-blur-sm border-white/40 hover:bg-white/90 transition-all duration-300 transform hover:scale-105"
                 >
                   <Edit3 className="h-4 w-4 mr-2" />
                   {profileData.withdrawalMethod ? 'Ubah' : 'Atur'}
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="p-6">
               {profileData.withdrawalMethod ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -926,68 +954,79 @@ export default function ProfilPage() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
-                  <Wallet className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                  <p>Belum ada metode penarikan</p>
-                  <p className="text-sm">Atur metode penarikan untuk menarik saldo</p>
+                  <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Wallet className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="font-medium mb-1">Belum ada metode penarikan</p>
+                  <p className="text-sm text-gray-400">Atur metode penarikan untuk menarik saldo</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Tab Navigation */}
-          <div className="flex space-x-2 mb-6 bg-white p-1 rounded-lg">
-            <button
-              onClick={() => setActiveTab('pemberi-kerja')}
-              className={`flex-1 py-3 px-4 rounded-md font-medium transition-colors ${
-                activeTab === 'pemberi-kerja'
-                  ? 'bg-primary-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Sebagai Pemberi Kerja
-            </button>
-            <button
-              onClick={() => setActiveTab('pencari-kerja')}
-              className={`flex-1 py-3 px-4 rounded-md font-medium transition-colors ${
-                activeTab === 'pencari-kerja'
-                  ? 'bg-primary-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Sebagai Pencari Kerja
-            </button>
+          <div className="bg-white/80 backdrop-blur-sm p-2 rounded-2xl shadow-lg border border-white/30 mb-6 animate-slide-up">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab('pemberi-kerja')}
+                className={`flex-1 py-4 px-5 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-3 ${
+                  activeTab === 'pemberi-kerja'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                <Building2 className="w-5 h-5" />
+                Sebagai Pemberi Kerja
+              </button>
+              <button
+                onClick={() => setActiveTab('pencari-kerja')}
+                className={`flex-1 py-4 px-5 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-3 ${
+                  activeTab === 'pencari-kerja'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                <Briefcase className="w-5 h-5" />
+                Sebagai Pencari Kerja
+              </button>
+            </div>
           </div>
 
           {/* Profile Content */}
           {activeTab === 'pencari-kerja' && (
-            <Card className="mb-6">
-              <CardHeader>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/30 mb-6 animate-card-pop">
+              <div className="p-6 border-b border-gray-100">
                 <div className="flex items-center justify-between">
-                  <CardTitle>Kategori Pekerjaan</CardTitle>
+                  <h2 className="text-xl font-bold text-gray-900">Kategori Pekerjaan</h2>
                   {!isEditingCategories && (
-                    <Button variant="outline" onClick={handleEditCategories} disabled={loading}>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleEditCategories} 
+                      disabled={loading}
+                      className="bg-white/80 backdrop-blur-sm border-white/40 hover:bg-white/90 transition-all duration-300 transform hover:scale-105"
+                    >
                       <Edit3 className="h-4 w-4 mr-2" />
                       Edit
                     </Button>
                   )}
                 </div>
-              </CardHeader>
-              <CardContent>
+              </div>
+              <div className="p-6">
                 {isEditingCategories ? (
                   <div className="space-y-4">
                     <div>
                       <Label>Bidang/Kategori Pekerjaan * (bisa lebih dari 1)</Label>
-                      <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                         {workCategories.map((category) => (
                           <button
                             key={category.id}
                             type="button"
                             onClick={() => toggleWorkCategory(category.id)}
                             disabled={loading}
-                            className={`p-3 rounded-lg border text-left transition-colors ${
+                            className={`p-3 rounded-xl border text-left transition-all duration-300 transform hover:scale-[1.02] ${
                               editCategories.includes(category.id)
-                                ? 'border-primary-500 bg-primary-50 text-primary-700'
-                                : 'border-gray-200 hover:border-gray-300'
+                                ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-md'
+                                : 'border-gray-200 bg-white/60 backdrop-blur-sm hover:border-gray-300 hover:shadow-md'
                             } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             {category.label}
@@ -996,12 +1035,21 @@ export default function ProfilPage() {
                       </div>
                     </div>
 
-                    <div className="flex space-x-2 pt-4">
-                      <Button onClick={handleSaveCategories} disabled={loading}>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2 pt-4">
+                      <Button 
+                        onClick={handleSaveCategories} 
+                        disabled={loading}
+                        className="flex-1 sm:flex-none bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                      >
                         <Save className="h-4 w-4 mr-2" />
                         {loading ? 'Menyimpan...' : 'Simpan'}
                       </Button>
-                      <Button variant="outline" onClick={() => { setEditCategories([]); setIsEditingCategories(false); }} disabled={loading}>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => { setEditCategories([]); setIsEditingCategories(false); }} 
+                        disabled={loading}
+                        className="flex-1 sm:flex-none bg-white/80 backdrop-blur-sm border-white/40 hover:bg-white/90"
+                      >
                         <X className="h-4 w-4 mr-2" />
                         Batal
                       </Button>
@@ -1028,43 +1076,56 @@ export default function ProfilPage() {
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
           {/* Statistics */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Statistik {activeTab === 'pemberi-kerja' ? 'Pemberi Kerja' : 'Pencari Kerja'}</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/30 mb-6 animate-card-pop">
+            <div className="p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-gray-900">
+                Statistik {activeTab === 'pemberi-kerja' ? 'Pemberi Kerja' : 'Pencari Kerja'}
+              </h2>
+            </div>
+            <div className="p-6">
               {activeTab === 'pencari-kerja' ? (
                 // Worker Statistics
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="text-center">
+                  <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 text-center shadow-md border border-white/40 transition-all duration-300 transform hover:scale-105 animate-card-pop-delay-1">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-emerald-200 rounded-xl flex items-center justify-center mx-auto mb-3">
+                      <CheckCircle className="w-6 h-6 text-green-600" />
+                    </div>
                     <div className="text-2xl font-bold text-green-600">{totalCompletedTasks}</div>
-                    <div className="text-sm text-gray-600">Pekerjaan Selesai</div>
+                    <div className="text-sm text-gray-600 font-medium">Pekerjaan Selesai</div>
                   </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center">
-                      <Star className="h-5 w-5 text-yellow-500 mr-1" />
+                  <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 text-center shadow-md border border-white/40 transition-all duration-300 transform hover:scale-105 animate-card-pop-delay-2">
+                    <div className="w-12 h-12 bg-gradient-to-br from-yellow-100 to-orange-200 rounded-xl flex items-center justify-center mx-auto mb-3">
+                      <Award className="w-6 h-6 text-yellow-600" />
+                    </div>
+                    <div className="flex items-center justify-center mb-2">
                       <span className="text-2xl font-bold text-yellow-600">{averageRating}</span>
                     </div>
-                    <div className="text-sm text-gray-600">Rating dari Klien</div>
+                    <div className="text-sm text-gray-600 font-medium">Rating dari Klien</div>
                   </div>
                 </div>
               ) : (
                 // Employer Statistics
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="text-center">
+                  <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 text-center shadow-md border border-white/40 transition-all duration-300 transform hover:scale-105 animate-card-pop-delay-1">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-xl flex items-center justify-center mx-auto mb-3">
+                      <CheckCircle className="w-6 h-6 text-blue-600" />
+                    </div>
                     <div className="text-2xl font-bold text-blue-600">{totalEmployerTasks}</div>
-                    <div className="text-sm text-gray-600">Tugas Diselesaikan</div>
+                    <div className="text-sm text-gray-600 font-medium">Tugas Diselesaikan</div>
                   </div>
-                  <div className="text-center">
+                  <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 text-center shadow-md border border-white/40 transition-all duration-300 transform hover:scale-105 animate-card-pop-delay-2">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-200 rounded-xl flex items-center justify-center mx-auto mb-3">
+                      <DollarSign className="w-6 h-6 text-purple-600" />
+                    </div>
                     <div className="text-2xl font-bold text-purple-600">
                       {formatCurrency(totalSpentAsEmployer)}
                     </div>
-                    <div className="text-sm text-gray-600">Total Dikeluarkan</div>
+                    <div className="text-sm text-gray-600 font-medium">Total Dikeluarkan</div>
                   </div>
                 </div>
               )}
@@ -1074,8 +1135,8 @@ export default function ProfilPage() {
                 <div>
                   <div className="text-sm font-semibold text-gray-900 mb-3">Riwayat Pekerjaan Terakhir</div>
                   <div className="space-y-3">
-                    {completedTasks.map((task) => (
-                      <div key={task._id} className="bg-gray-50 rounded-lg p-3">
+                    {completedTasks.map((task, index) => (
+                      <div key={task._id} className={`bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-md border border-white/40 hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] animate-card-pop-delay-${index + 1}`}>
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
@@ -1146,8 +1207,8 @@ export default function ProfilPage() {
                 <div>
                   <div className="text-sm font-semibold text-gray-900 mb-3">Riwayat Tugas yang Diselesaikan</div>
                   <div className="space-y-3">
-                    {employerTasks.map((task) => (
-                      <div key={task._id} className="bg-gray-50 rounded-lg p-3">
+                    {employerTasks.map((task, index) => (
+                      <div key={task._id} className={`bg-white/60 backdrop-blur-sm rounded-2xl p-4 shadow-md border border-white/40 hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] animate-card-pop-delay-${index + 1}`}>
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-900 text-sm">{task.title}</h4>
@@ -1208,37 +1269,43 @@ export default function ProfilPage() {
 
               {/* Empty State for No Completed Tasks - Worker */}
               {activeTab === 'pencari-kerja' && completedTasks.length === 0 && (
-                <div className="text-center py-6 text-gray-500">
-                  <div className="text-3xl mb-2">📝</div>
-                  <div className="text-sm font-medium">Belum ada pekerjaan yang diselesaikan</div>
-                  <div className="text-xs text-gray-400 mt-1">Mulai ambil pekerjaan untuk membangun riwayat</div>
+                <div className="text-center py-8 text-gray-500">
+                  <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Briefcase className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <div className="text-sm font-medium mb-1">Belum ada pekerjaan yang diselesaikan</div>
+                  <div className="text-xs text-gray-400">Mulai ambil pekerjaan untuk membangun riwayat</div>
                 </div>
               )}
 
               {/* Empty State for No Completed Tasks - Employer */}
               {activeTab === 'pemberi-kerja' && employerTasks.length === 0 && (
-                <div className="text-center py-6 text-gray-500">
-                  <div className="text-3xl mb-2">🏢</div>
-                  <div className="text-sm font-medium">Belum ada tugas yang diselesaikan</div>
-                  <div className="text-xs text-gray-400 mt-1">Buat tugas baru untuk memulai</div>
+                <div className="text-center py-8 text-gray-500">
+                  <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Building2 className="w-8 w-8 text-gray-400" />
+                  </div>
+                  <div className="text-sm font-medium mb-1">Belum ada tugas yang diselesaikan</div>
+                  <div className="text-xs text-gray-400">Buat tugas baru untuk memulai</div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Reviews Section - Only for Pencari Kerja */}
           {activeTab === 'pencari-kerja' && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-yellow-500" />
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/30 mb-6 animate-card-pop">
+              <div className="p-6 border-b border-gray-100">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-yellow-100 to-orange-200 rounded-xl flex items-center justify-center">
+                    <Star className="h-5 w-5 text-yellow-600" />
+                  </div>
                   Ulasan & Rating
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+                </h2>
+              </div>
+              <div className="p-6">
                 <ReviewsSection userId={session.user.id} />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
 

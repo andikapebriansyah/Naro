@@ -7,6 +7,8 @@ export interface ProfileValidation {
   missingBasicFields: string[];
   canAccessFeatures: boolean;
   canCreateTasks: boolean;
+  verificationStatus: 'not_submitted' | 'pending' | 'approved' | 'rejected';
+  needsProfileCompletion: boolean;
 }
 
 export function useProfileValidation(): ProfileValidation {
@@ -21,6 +23,8 @@ export function useProfileValidation(): ProfileValidation {
         missingBasicFields: ['session'],
         canAccessFeatures: false,
         canCreateTasks: false,
+        verificationStatus: 'not_submitted' as const,
+        needsProfileCompletion: false,
       };
     }
 
@@ -40,13 +44,23 @@ export function useProfileValidation(): ProfileValidation {
     const isBasicProfileComplete = missingBasicFields.length === 0;
     const isTaskerProfileComplete = missingFields.length === 0;
 
+    // Get verification status from session (will be added to session type)
+    const verificationStatus = (session.user as any).verificationStatus || 'not_submitted';
+    
+    // User needs to complete profile if:
+    // - Is verified by admin
+    // - But profile is not complete
+    const needsProfileCompletion = session.user.isVerified && !isTaskerProfileComplete;
+
     return {
       isTaskerProfileComplete,
       isBasicProfileComplete,
       missingFields,
       missingBasicFields,
-      canAccessFeatures: isTaskerProfileComplete, // For working as tasker
-      canCreateTasks: session.user.isVerified && isBasicProfileComplete, // For creating tasks
+      canAccessFeatures: session.user.isVerified && isTaskerProfileComplete, // Need verified + complete profile
+      canCreateTasks: session.user.isVerified && isBasicProfileComplete, // Need verified + basic info
+      verificationStatus,
+      needsProfileCompletion,
     };
   };
 
@@ -54,6 +68,6 @@ export function useProfileValidation(): ProfileValidation {
 }
 
 export function useCanAccessFeatures(): boolean {
-  const { isTaskerProfileComplete } = useProfileValidation();
-  return isTaskerProfileComplete;
+  const { canAccessFeatures } = useProfileValidation();
+  return canAccessFeatures;
 }

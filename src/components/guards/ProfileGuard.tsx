@@ -20,13 +20,20 @@ export function ProfileGuard({
 }: ProfileGuardProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { canAccessFeatures, canCreateTasks } = useProfileValidation();
+  const { canAccessFeatures, canCreateTasks, needsProfileCompletion } = useProfileValidation();
 
   useEffect(() => {
     if (status === 'loading') return;
     
     if (!session) {
       router.push('/auth/login');
+      return;
+    }
+
+    // Check if user is verified but profile incomplete
+    // Redirect to profile page to complete
+    if (session.user.isVerified && needsProfileCompletion && !window.location.pathname.includes('/profil')) {
+      router.push('/profil');
       return;
     }
 
@@ -47,7 +54,7 @@ export function ProfileGuard({
       router.push(fallbackUrl);
       return;
     }
-  }, [session, status, canAccessFeatures, canCreateTasks, requiresTaskerProfile, requiresBasicProfile, requiresVerification, fallbackUrl, router]);
+  }, [session, status, canAccessFeatures, canCreateTasks, needsProfileCompletion, requiresTaskerProfile, requiresBasicProfile, requiresVerification, fallbackUrl, router]);
 
   if (status === 'loading') {
     return (

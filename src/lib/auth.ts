@@ -69,6 +69,8 @@ export const authOptions: NextAuthOptions = {
           session.user.about = dbUser.about;
           session.user.workCategories = dbUser.workCategories;
           session.user.profileComplete = dbUser.profileComplete;
+          // Add verification status
+          (session.user as any).verificationStatus = dbUser.ktpVerification?.status || 'not_submitted';
         }
       }
       return session;
